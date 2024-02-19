@@ -10,7 +10,8 @@ library(tidyverse)
       
       #esquema de tratamientos
       escenario.tratamiento <- read.csv("datos/escenarios/go_fagus/tratamientos_H1.csv", sep=";")
-
+#modelo de incremento individual
+      load("datos/mod_inc_diam_individual")
 
 # Parámetros de inicio
       # parámetros relación Dg ~ f(N, Ho)
@@ -62,7 +63,7 @@ Ho = IS*((1-1/exp(0.02*edad))/(1-1/exp(0.02*80)))^1.4823
 # Variables "Antes de la clara"
 N_a <- rep(0, length(edad))
 Dg_a <- rep(0, length(edad))
-dist_D_a <- rep(0, length(edad))
+dist_D_a <-  vector(mode='list', length=length(edad))
 G_a <- rep(0, length(edad))
 V_a <- rep(0, length(edad))
 vi_a <- rep(0, length(edad))
@@ -72,7 +73,7 @@ IH_a <- rep(0, length(edad))
 # Variables "Después de la clara"
 N_d <- rep(0, length(edad))
 Dg_d <- rep(0, length(edad))
-dist_D_d <- rep(0, length(edad))
+dist_D_d <- vector(mode='list', length=length(edad))
 G_d <- rep(0, length(edad))
 V_d <- rep(0, length(edad))
 vi_d <- rep(0, length(edad))
@@ -139,19 +140,38 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
       # a: parámetro de localización diámetro mínimo, hay que modelizarlo
       # lo iniciamos a 5
        
-      func_expande_Weibull <- function (i_ = 7) {
-         Dg_ = Dg_d[i_-1]
-         N_ = N_d[i_-1]
+      func_expande_Weibull <- function (i_ = 7, Dg_a_, N_a_) {
+         Dg_ = Dg_a_
+         N_ = N_a_
          G_= Dg_^2*pi*N_/40000     
          Dm_ = Dg_ - exp(a7+a8*N_+a10*G_)
          var_ = Dg_^2 - Dm_^2
+         
+         # Dg_ = Dg_d[i_-1]
+         # N_ = N_d[i_-1]
+         # G_= Dg_^2*pi*N_/40000   
+         
+         Dm_ = Dg_ - exp(a7+a8*N_+a10*G_)
+         var_ = Dg_^2 - Dm_^2
          # parámetro a
-         a = 5
+         if (is.null(dist_D_d[[i_-1]])) {
+           a = 5
+         } else {
+           # min(dist_D_d[i_-1]$d)
+           newdata_ = data.frame(Ho_ifn3 = Ho[i_-1],
+                                 ab_ifn3 = (Dg_d[i_-1])^2*pi*(N_[i_-1])/40000,
+                                 Dn_ifn3 = min(dist_D_d[[i_-1]]$d),
+                                 dgm_ifn3 = Dg_d[i_-1])
+           inc_ <- predict(m.Richards, newdata = newdata_)
+           a = min(dist_D_d[[i_-1]]$d)+inc_
+         }
+
+         
          # parámetro c
          func = function(x){
            var_ -  ((Dm_ - a)^2 / (gamma(1+1/x))^2) *(gamma(1+2/x) - (gamma(1+1/x))^2)
          }
-         c = Bisection(f = func,2,3)
+         c = Bisection(f = func,1,4)
          # parámetro b
          b = (Dm_ - a)/gamma(1+1/c)
          return(c(a,b,c))
@@ -194,12 +214,18 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
      
       # función de clara por lo bajo
       func_clara_bajo <- function(i_ = 1) {
-        V_extr = extrac_min
-        V_total =  b3*Dg_^b4*Ho[i]^b5*N_^b6
+        N_a_ = N_d[i_-1]
+        Dg_a_ = b0*N_a_^b1*Ho[i_]^b2
+        V_a_ = b3*Dg_a_^b4*Ho[i_]^b5*N_a_^b6
+        dist_D_a_ <- NA #no hace falta calcularlo
         
-        param_= func_expande_Weibull(i_)
+        V_total = V_a_
+        V_extr = extrac_min
+        #V_total =  b3*Dg_^b4*Ho[i]^b5*N_^b6
+        
+        param_= func_expande_Weibull(i_, Dg_a_, N_a_) #tiene en cuanta la variación de "a", diámetro mínimo
         df <- data.frame(d_ = seq(param_[1]+0.5,100)) %>% #100 como diámetro superior, pero deberíamos parametrizarlo
-          mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_[1],param_[2],param_[3]))* N_) %>%
+          mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_[1],param_[2],param_[3]))* N_a_) %>%
           mutate(n_d = floor(n_d)) %>%
           mutate(diam2xN = d_^2*n_d) %>% #estimación de la relación diámetro-volumen
           mutate(vol_prop = V_total*diam2xN/sum(diam2xN)) %>% #volumen repartido proporcionalmente por diámetro
@@ -220,37 +246,73 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
         Dg_d_ = sqrt(sum(df$n_despues_clase*(df$d_-0.5)^2)/sum(df$n_despues_clase))
         #V_d_ = V_total-V_extr
         V_d_ = sum(df$vol_prop + df$mult)
-        N_a_ = 
-        Dg_a_ = 
-        V_a_ = 
-        return(c(N_d_,Dg_d_,V_d_,N_a_,Dg_a_,V_a_))
+        dist_D_d_ <- df
+        
+
+        return(list(N_a_,Dg_a_,V_a_,dist_D_a_, N_d_,Dg_d_,V_d_,dist_D_d_))
       }
 
       # función de tratamiento
       # devuelve N_d
       # si no hay tratamiento, se actualiza con la mortalidad
       # si es "clareo" se actualiza Dg con la fórmula de masa ~ f(N,Ho)
-      func_trat <- function(tratam_ = "clareo", i_ = 1) {
+      func_trat <- function(tratam_ = "clareo", i_ = 2) {
        if (tratam_ == "") {
+         #antes
+         N_a_ <- N_d[i_-1]
+         Dg_a_ = b0*N_a_^b1*Ho[i_]^b2
+         V_a_ <- b3*Dg_a_^b4*Ho[i_]^b5*N_a_^b6
+         if (is.na(mod_evol_D$id[i_])) {
+            dist_D_a_ <- NA
+         } else if (is.null(dist_D_d[[i_-1]])) {
+           param_= func_expande_Weibull(i_, Dg_a_, N_a_)
+           df <- data.frame(d_ = seq(param_[1]+0.5,100)) %>% #100 como diámetro superior, pero deberíamos parametrizarlo
+             mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_[1],param_[2],param_[3])) * N_a_) %>%
+             mutate(n_d = floor(n_d)) %>%
+             filter(n_d > 0)
+           dist_D_a_ <- df
+         }
+                          
+         #después
          N_d_ = func_mort(N_d[i_-1], Dg_d[i_-1])
-         Dg_d_ = b0*N_d_^b1*Ho[i]^b2
-         V_d_ <- b3*Dg_d_^b4*Ho[i]^b5*N_d_^b6
-         N_a_ <- N_d[i-1]
-         Dg_a_ = b0*N_a_^b1*Ho[i]^b2
-         V_a_ <- b3*Dg_a_^b4*Ho[i]^b5*N_a_^b6
-         return(c(N_d_,Dg_d_,V_d_,N_a_,Dg_a_,V_a_))
+         Dg_d_ = b0*N_d_^b1*Ho[i_]^b2
+         V_d_ <- b3*Dg_d_^b4*Ho[i_]^b5*N_d_^b6
+         dist_D_d_ <- dist_D_a_ #esta distribución sólo se usa a efectos del cálculo del diámetro mínimo.
+                                #se asume que el diámetro mínimo no cambia tras la mortalidad natural, es un fenómeno aleatorio
+         # N_d_ = func_mort(N_d[i_-1], Dg_d[i_-1])
+         # Dg_d_ = b0*N_d_^b1*Ho[i]^b2
+         # V_d_ <- b3*Dg_d_^b4*Ho[i]^b5*N_d_^b6
+ 
+         return(list(N_a_,Dg_a_,V_a_,dist_D_a_, N_d_,Dg_d_,V_d_,dist_D_d_))
          
          } else if (tratam_ == "clareo") {
+           #antes
+           N_a_ <- N_d[i_-1]
+           Dg_a_ = b0*N_a_^b1*Ho[i_]^b2
+           V_a_ <- b3*Dg_a_^b4*Ho[i_]^b5*N_a_^b6
+           if (is.na(mod_evol_D$id[i_])) {
+             dist_D_a_ <- NA
+           } else if (is.null(dist_D_d[[i_-1]])) {
+             param_= func_expande_Weibull(i_, Dg_a_, N_a_)
+             df <- data.frame(d_ = seq(param_[1]+0.5,100)) %>% #100 como diámetro superior, pero deberíamos parametrizarlo
+               mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_[1],param_[2],param_[3])) * N_a_) %>%
+               mutate(n_d = floor(n_d)) %>%
+               filter(n_d > 0)
+             
+             dist_D_a_ <- df
+           }
+           #después
            N_d_ = clareo
-           Dg_d_ = b0*N_d_^b1*Ho[i]^b2
-           V_d_ <- b3*Dg_d_^b4*Ho[i]^b5*N_d_^b6
-           N_a_ <- N_d[i-1]
-           Dg_a_ = b0*N_a_^b1*Ho[i]^b2
-           V_a_ <- b3*Dg_a_^b4*Ho[i]^b5*N_a_^b6
-           return(c(N_d_,Dg_d_,V_d_,N_a_,Dg_a_,V_a_))
+           Dg_d_ = b0*N_d_^b1*Ho[i_]^b2
+           V_d_ <- b3*Dg_d_^b4*Ho[i_]^b5*N_d_^b6
+           dist_D_d_ <- dist_D_a_ #esta distribución sólo se usa a efectos del cálculo del diámetro mínimo.
+           #se asume que el diámetro mínimo no cambia tras el clareo, la selección de árboles es aleatoria o sistemática
+
+           return(list(N_a_,Dg_a_,V_a_,dist_D_a_, N_d_,Dg_d_,V_d_,dist_D_d_))
            
-         } else if (tratam_ == "clara por lo bajo") {
-           
+         #} else if (tratam_ == "clara por lo bajo") {
+         } else if (tratam_ %in% c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria 1")) {
+           func_clara_bajo(i_= i_)
          }
       }
       
@@ -259,10 +321,12 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
       N_a[1] <- N_ini
       Dg_a[1] <- b0*N_a[1]^b1*Ho[1]^b2
       V_a[1] <- b3*Dg_a[1]^b4*Ho[1]^b5*N_a[1]^b6
+      #dist_D_a[1] <- NA
       
       N_d[1] <- N_a[1] 
       Dg_d[1] <- Dg_a[1]
       V_d[1] <- V_a[1]
+      #dist_D_d[1] <- NA
       
       N_e[1] <- 0 
       Dg_e[1] <- 0
@@ -272,14 +336,22 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
       # 2. Avance secuencial
       
       i = 2
-      for (i in c(2:6)) { 
+      for (i in c(2:23)) { 
         #N_a[i] <- N_d[i-1]
+        print(i)
         avance_ <- func_trat(tratam = escenario.tratamiento$tratamiento[i], i_ = i)
         #N_d[i] <- func_trat(tratam = escenario.tratamiento$tratamiento[i], i_ = i)
-        N_d[i] <- avance_[1]
-        Dg_d[i] <- avance_[2]
-        V_d[i] <- avance_[3]
-        N_a[i] <- avance_[4]
-        Dg_a[i] <- avance_[5]
-        V_a[i] <- avance_[6]
+        N_a[i] <- avance_[[1]]
+        Dg_a[i] <- avance_[[2]]
+        V_a[i] <- avance_[[3]]
+        dist_D_a[[i]] <- avance_[[4]]
+        N_d[i] <- avance_[[5]]
+        Dg_d[i] <- avance_[[6]]
+        V_d[i] <- avance_[[7]]
+        dist_D_a[[i]] <- avance_[[8]]
       }
+
+  res <- data.frame(N_a_ = N_a, Dg_a_ = Dg_a, V_a_ = V_a,
+                    N_d_ = N_d, Dg_d_ = Dg_d, V_d_ = V_d,
+                    tratam = escenario.tratamiento$tratamiento)
+  
