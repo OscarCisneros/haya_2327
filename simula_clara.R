@@ -39,7 +39,7 @@ library(tidyverse)
       # clareo
       clareo = 3750 #3500
       # extracción mínima en clara, m3/ha
-      extrac_min = 55 #40
+      extrac_min = 40 #40
       
       
       # tasa de mortalidad natural en 5 años
@@ -159,20 +159,24 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
          if (class(dist_D_d[[i_-1]]) != "data.frame") {
            a = 5
          } else {
-           # min(dist_D_d[i_-1]$d)
-           newdata_ = data.frame(Ho_ifn3 = Ho[i_-1],
-                                 ab_ifn3 = (Dg_d[i_-1])^2*pi*(N_d[i_-1])/40000,
-                                 Dn_ifn3 = min(dist_D_d[[i_-1]]$d_),
-                                 dgm_ifn3 = Dg_d[i_-1])
-           inc_ <- predict(m.Richards, newdata = newdata_)
-           a = min(dist_D_d[[i_-1]]$d_)+inc_*5
+         
+           # newdata_ = data.frame(Ho_ifn3 = Ho[i_-1],
+           #                       ab_ifn3 = (Dg_d[i_-1])^2*pi*(N_d[i_-1])/40000,
+           #                       Dn_ifn3 = min(dist_D_d[[i_-1]]$d_),
+           #                       dgm_ifn3 = Dg_d[i_-1])
+           # inc_ <- predict(m.Richards, newdata = newdata_)
+           # a = min(dist_D_d[[i_-1]]$d_)+inc_*(edad[i] - edad[i_-1])
+           
+           newdata_ = data.frame(Dg = Dg_)
+           a = predict(lm.diam_min, newdata = newdata_)
+           
          }
 
          # parámetro c
          func = function(x){
            var_ -  ((Dm_ - a)^2 / (gamma(1+1/x))^2) *(gamma(1+2/x) - (gamma(1+1/x))^2)
          }
-         c = Bisection(f = func,0.1,4) #Bisection(f = func,1,4)
+         c = Bisection(f = func, 0.1, 4) #Bisection(f = func,1,4)
          # parámetro b
          b = (Dm_ - a)/gamma(1+1/c)
          return(c(a,b,c))
@@ -226,10 +230,9 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
         
         param_= func_expande_Weibull(i_, Dg_a_, N_a_) #tiene en cuanta la variación de "a", diámetro mínimo
         df <- data.frame(d_ = seq(round(param_[1]/0.5)*0.5,1000)) %>% #100 como diámetro superior, pero deberíamos parametrizarlo
-          mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_[1],param_[2],param_[3]))) %>%
-         # mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_[1],param_[2],param_[3]))* N_a_) %>%
-          filter(!is.infinite(n_d)) %>% #inf cuando el redondeo está por debajo del diámetro inferior (param[1])
-         # mutate(n_d = floor(n_d)) %>%
+          mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_[1],param_[2],param_[3]))* N_a_) %>%
+          filter(!is.na(n_d)) %>% #inf cuando el redondeo está por debajo del diámetro inferior (param[1])
+          #mutate(n_d = floor(n_d)) %>%
           mutate(diam2xN = d_^2*n_d) %>% #estimación de la relación diámetro-volumen
           mutate(vol_prop = V_total*diam2xN/sum(diam2xN)) %>% #volumen repartido proporcionalmente por diámetro
           #arrange(d_) %>% #operaciones para marcar los diámetros por lo bajo hasta V_extr
