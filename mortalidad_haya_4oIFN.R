@@ -128,6 +128,16 @@ library(tidyverse)
       ggplot(PCMayores_Ifn4_haya_depura_2 %>% filter(n_mort > 0), aes(x= log(dgm), y =log(n) ))+geom_point()+
         geom_line(aes(x=log(dgm), y=predict(cobbDouglas)))
         
+      ggplot(PCMayores_Ifn4_haya_depura_2 %>% filter(n_mort > 0), aes(x= log(dgm), y =log(n) ))+geom_point(size = 4, color = "blue")+
+        geom_line(aes(x=log(dgm), y=predict(cobbDouglas))) +
+        ggtitle("Modelo de mortalidad natural. SFA")+
+        theme_light()+
+        labs(x = "log(Dg)", y = "log(N)")+
+        theme(text = element_text(size = 30)) 
+      
+      # ggsave("resumen_resultados/evaluacion_Test_Bi.png", width = 677.4 , height = 364.416, units = "mm")
+      
+      
       ggplot(PCMayores_Ifn4_haya_depura_2 , aes(x= dgm, y =n_mort/n))+geom_point()
       
       lm.n_mort_dgm <- lm(log(n_mort/n+0.001) ~ log(dgm), data = PCMayores_Ifn4_haya_depura_2)
