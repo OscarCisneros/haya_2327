@@ -6,12 +6,32 @@ library(tidyverse)
 
 # Escenario
       # Denominación del escenario
-      escenario.nombre <- "H1"
+      escenario.nombre <- "H5"
       
       #esquema de tratamientos
-      escenario.tratamiento <- read.csv("datos/escenarios/go_fagus/tratamientos_H1.csv", sep=";")
+      escenario.tratamiento <- read.delim("datos/escenarios/go_fagus/tratamientos_H5_IS_13.csv")
+      
+      # densidad inicial
+      N_ini = 5000
+      # densidad final
+      N_fin = 125
+      # clareo
+      clareo = 2000 #3500
+      # extracción mínima en clara, m3/ha
+      extrac_min = 40 #40
+      
+      # calidad de estación
+      IS = 13
+      
+      # rango de edades
+      edad_ini <- 5
+      edad_fin <- 200
+      
 #modelo de incremento individual
-      load("datos/mod_inc_diam_individual")
+     # load("datos/mod_inc_diam_individual")
+      
+#modelo de diámetro mínimo
+      load("resultados/mod_diam_min/lm_dim_min_irreg")
 
 # Parámetros de inicio
       # parámetros relación Dg ~ f(N, Ho)
@@ -30,32 +50,12 @@ library(tidyverse)
       a8 = -0.000620621044818245
       a10 = 0.0166602839868406
       
-      
-      
-      # densidad inicial
-      N_ini = 7000
-      # densidad final
-      N_fin = 250
-      # clareo
-      clareo = 3750 #3500
-      # extracción mínima en clara, m3/ha
-      extrac_min = 50 #40
-      
-      
       # tasa de mortalidad natural en 5 años
       mort_lustro = 0.02141
       # parámetros del modelo de mortalidad SFA
       mort_interc <- 13.046138
       mort_pend <- -1.90102
       
-      # calidad de estación
-      IS = 25
-      
-      # rango de edades
-      edad_ini <- 5
-      edad_fin <- 120
-
-
 
 edad = seq(edad_ini,edad_fin, by = 5)
 Ho = IS*((1-1/exp(0.02*edad))/(1-1/exp(0.02*80)))^1.4823
@@ -108,9 +108,10 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
 
       # función de mortalidad
       func_mort <- function(N_, D_) {
-        N_extr_nat = N_*(1-mort_lustro)
+        #N_extr_nat = N_*(1-mort_lustro) #no está clara que este sea un dato fiable, hay que revisar con las parcelas de claras
         N_extr_SFA = exp(mort_interc+log(D_)*mort_pend)
-        return(min(c(N_extr_nat,N_extr_SFA)))
+        #return(min(c(N_extr_nat,N_extr_SFA)))
+        return(min(c(N_,N_extr_SFA)))
       }
       
       #función de densidad de Weibull con 3 parámetros
@@ -168,7 +169,7 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
            # a = min(dist_D_d[[i_-1]]$d_)+inc_*(edad[i] - edad[i_-1])
            
            newdata_ = data.frame(Dg = Dg_)
-           a = predict(lm.diam_min, newdata = newdata_)
+           a = as.numeric(predict(lm.diam_min_irreg, newdata = newdata_))
            
          }
 
@@ -176,7 +177,7 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
          func = function(x){
            var_ -  ((Dm_ - a)^2 / (gamma(1+1/x))^2) *(gamma(1+2/x) - (gamma(1+1/x))^2)
          }
-         c = Bisection(f = func, 0.1, 4) #Bisection(f = func,1,4)
+         c = Bisection(f = func, 0.1, 10) #Bisection(f = func,1,4)
          # parámetro b
          b = (Dm_ - a)/gamma(1+1/c)
          return(c(a,b,c))
@@ -298,9 +299,10 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
          } else  {
          #} else if (is.null(dist_D_d[[i_-1]])) {
            param_= func_expande_Weibull(i_, Dg_a_, N_a_)
-           df <- data.frame(d_ = seq(param_[1]+0.5,100)) %>% #100 como diámetro superior, pero deberíamos parametrizarlo
-             mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_[1],param_[2],param_[3])) * N_a_) %>%
-             mutate(n_d = floor(n_d)) %>%
+           df <- data.frame(d_ = seq(round(param_[1]/0.5)*0.5,1000)) %>% #100 como diámetro superior, pero deberíamos parametrizarlo
+             mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_[1],param_[2],param_[3]))* N_a_) %>%
+             filter(!is.na(n_d)) %>%
+             #mutate(n_d = floor(n_d)) %>%
              filter(n_d > 0)
            dist_D_a_ <- df
          }
@@ -317,6 +319,35 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
  
          return(list(N_a_,Dg_a_,V_a_,dist_D_a_, N_d_,Dg_d_,V_d_,dist_D_d_))
          
+       } else if (tratam_ == "mortalidad natural") {
+         #antes
+         N_a_ <- N_d[i_-1]
+         Dg_a_ = b0*N_a_^b1*Ho[i_]^b2
+         V_a_ <- b3*Dg_a_^b4*Ho[i_]^b5*N_a_^b6
+         if (is.na(mod_evol_D$id[i_])) {
+           dist_D_a_ <- NA
+         } else  {
+           #} else if (is.null(dist_D_d[[i_-1]])) {
+           param_= func_expande_Weibull(i_, Dg_a_, N_a_)
+           df <- data.frame(d_ = seq(round(param_[1]/0.5)*0.5,1000)) %>% #100 como diámetro superior, pero deberíamos parametrizarlo
+             mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_[1],param_[2],param_[3]))* N_a_) %>%
+             filter(!is.na(n_d)) %>%
+             #mutate(n_d = floor(n_d)) %>%
+             filter(n_d > 0)
+           dist_D_a_ <- df
+         }
+         
+         #después
+         N_d_ = func_mort(N_a_, Dg_a_)
+         Dg_d_ = b0*N_d_^b1*Ho[i_]^b2
+         V_d_ <- b3*Dg_d_^b4*Ho[i_]^b5*N_d_^b6
+         dist_D_d_ <- dist_D_a_ #esta distribución sólo se usa a efectos del cálculo del diámetro mínimo.
+         #se asume que el diámetro mínimo no cambia tras la mortalidad natural, es un fenómeno aleatorio
+         # N_d_ = func_mort(N_d[i_-1], Dg_d[i_-1])
+         # Dg_d_ = b0*N_d_^b1*Ho[i]^b2
+         # V_d_ <- b3*Dg_d_^b4*Ho[i]^b5*N_d_^b6
+         
+         return(list(N_a_,Dg_a_,V_a_,dist_D_a_, N_d_,Dg_d_,V_d_,dist_D_d_))
          } else if (tratam_ == "clareo") {
            #antes
            N_a_ <- N_d[i_-1]
@@ -324,11 +355,13 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
            V_a_ <- b3*Dg_a_^b4*Ho[i_]^b5*N_a_^b6
            if (is.na(mod_evol_D$id[i_])) {
              dist_D_a_ <- NA
-           } else if (is.null(dist_D_d[[i_-1]]) | is.na(dist_D_d[[i_-1]])) {
+           #} else if (is.null(dist_D_d[[i_-1]]) | is.na(dist_D_d[[i_-1]])) {
+           } else  {
              param_= func_expande_Weibull(i_, Dg_a_, N_a_)
-             df <- data.frame(d_ = seq(param_[1]+0.5,100)) %>% #100 como diámetro superior, pero deberíamos parametrizarlo
-               mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_[1],param_[2],param_[3])) * N_a_) %>%
-               mutate(n_d = floor(n_d)) %>%
+             df <- data.frame(d_ = seq(round(param_[1]/0.5)*0.5,1000)) %>% #100 como diámetro superior, pero deberíamos parametrizarlo
+               mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_[1],param_[2],param_[3]))* N_a_) %>%
+               filter(!is.na(n_d)) %>%
+               #mutate(n_d = floor(n_d)) %>%
                filter(n_d > 0)
              
              dist_D_a_ <- df
@@ -343,7 +376,7 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
            return(list(N_a_,Dg_a_,V_a_,dist_D_a_, N_d_,Dg_d_,V_d_,dist_D_d_))
            
          #} else if (tratam_ == "clara por lo bajo") {
-         } else if (tratam_ %in% c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria 1")) {
+         } else if (tratam_ %in% c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria 1", "aclaratoria")) {
            func_clara_bajo(i_= i_)
          } else if (tratam_ == "final") {
            #antes
@@ -381,7 +414,7 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
       # 2. Avance secuencial
       
       i = 2
-      for (i in c(2:24)) { 
+      for (i in c(2:nrow(escenario.tratamiento))) { 
         #N_a[i] <- N_d[i-1]
         print(i)
         avance_ <- func_trat(tratam = escenario.tratamiento$tratamiento[i], i_ = i)
@@ -396,17 +429,36 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
         dist_D_d[[i]] <- avance_[[8]]
       }
 
-  res <- data.frame(Edad = edad, Ho_ = Ho,
+  res <- data.frame(IS_ = IS, Edad = edad, Ho_ = Ho,
                     N_a_ = N_a, Dg_a_ = Dg_a, V_a_ = V_a,
                     N_d_ = N_d, Dg_d_ = Dg_d, V_d_ = V_d,
                     tratam = escenario.tratamiento$tratamiento) %>%
-    mutate(Ve_ = V_a_- V_d_ ) %>%
-    mutate(acum_V_e_ = cumsum(Ve_)) %>%
+    mutate(G_a_ = Dg_a_^2*pi*N_a_/40000, Vi_a_ = V_a_/N_a_, H_D_a_ = Ho_/Dg_a_*100, IH_a_ = 100*(sqrt(20000/(N_a_*(sqrt(3))))/Ho_)) %>%
+    mutate(G_d_ = Dg_d_^2*pi*N_d_/40000, H_D_d_ = Ho_/Dg_d_*100, IH_d_ = 100*(sqrt(20000/(N_d_*(sqrt(3))))/Ho_)) %>%
+    mutate(N_e_ = N_a_ - N_d_, G_e_ = G_a_- G_d_, IH_e_ = IH_d_ - IH_a_) %>%
+    mutate(Dg_e = sqrt((G_e_*40000)/(pi*N_e_))) %>%
+    mutate(V_e_ = V_a_- V_d_ ) %>%
+    mutate(acum_V_e_ = cumsum(V_e_)) %>%
     mutate(lag_acum = c(0, lag(acum_V_e_)[2:n()])) %>%
     mutate(Crec_Vt_ = V_a_+lag_acum) %>%
     mutate(diff_Crec_Vt = c(0, diff(Crec_Vt_))) %>%
+    mutate(Crec_medio_ = Crec_Vt_/Edad) %>%
     mutate(Crec_corr_ = diff_Crec_Vt/c(0,diff(Edad)))
   
-  write.xlsx(res, "prueba.xlsx")
+  #Para eliminar inf, -inf y NA se pasan todo a NA y luego a cero
+  res <- res %>% mutate_if(is.numeric, list(~na_if(., Inf))) %>% 
+    mutate_if(is.numeric, list(~na_if(., -Inf)))
+  
+  res[is.na(res)] <- 0
+  
+  nombres_exc <- c("IS_", "Edad", "Ho_", "N_a_" , "Dg_a_", "G_a_", "V_a_", "Vi_a_", "H_D_a_", "IH_a_",
+    "N_e_", "Dg_e", "G_e_", "IH_e_", "V_e_",
+    "N_d_", "Dg_d_", "G_d_", "V_d_", "H_D_d_", "IH_d_",
+    "Crec_Vt_", "Crec_medio_", "Crec_corr_",
+    "tratam")
+  para_excel_res <- res[nombres_exc] %>%
+    mutate(across(is.numeric, round, digits=1))
+  
+  write.xlsx(para_excel_res, paste0("resultados/simulaciones/",escenario.nombre,"_IS_",IS,".xlsx"))
   #write.csv2(res, "res_H1_primera.csv")
   

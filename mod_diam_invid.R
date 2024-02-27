@@ -3,6 +3,7 @@
 
 library(tidyverse)
 library(minpack.lm)
+library(nlraa)
 #library(patchwork)
 
 m.Richards <- nlsLM(

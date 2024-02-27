@@ -156,7 +156,7 @@ library(tidyverse)
 
       # Function call to load data. Tables on vector "TABLES"
       fn.importData(MDBPATH="datos/Ifn3p31.accdb",
-                    TABLES=c("PCParcelas","PCMayores"),
+                    TABLES=c("PCParcelas","PCMayores", "PCEspParc"),
                     DROP_VARS=c(),
                     ORDER_BY=c(),
                     PWD="admin",
