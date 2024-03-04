@@ -22,9 +22,10 @@ df <- data.frame(d_ = seq(6,30)) %>%
   mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_[1],param_[2],param_[3]))* N_) %>%
   mutate(n_d = floor(n_d))
 
-sapply(x=seq(6,30), funtion(x) func_dens_weibull(x,param_[1],param_[2],param_[3]))
+sapply(x=seq(6,30), funtion(x), func_dens_weibull(x,param_[1],param_[2],param_[3]))
 
 Dg_ = 17.8
+
 Dm_ = 17.3
 var_ = Dg_^2 - Dm_^2
 # parámetro a

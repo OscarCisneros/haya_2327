@@ -118,6 +118,9 @@ library(tidyverse)
       ggplot(PCMayores_Ifn4_haya_depura_2, aes(x=log(dgm),y=log(n)))+
         geom_point()
       
+      
+      ggplot(PCMayores_Ifn4_haya_depura_2, aes(x=dgm,y=n))+
+        geom_point()
       #se eliminan del análisis las parcelas sin mortalidad desde el anterior inventario
       #
         
@@ -135,6 +138,14 @@ library(tidyverse)
         labs(x = "log(Dg)", y = "log(N)")+
         theme(text = element_text(size = 30)) 
       
+      
+      ggplot(PCMayores_Ifn4_haya_depura_2 %>% filter(n_mort > 0), aes(x= dgm, y =n ))+geom_point(size = 4, color = "blue")+
+        geom_smooth(stat = "smooth")+
+        geom_line(aes(x=dgm, y=exp(predict(cobbDouglas)))) +
+        ggtitle("Modelo de mortalidad natural. SFA")+
+        theme_light()+
+        labs(x = "Dg (cm)", y = "N (arb/ha)")+
+        theme(text = element_text(size = 30)) 
       # ggsave("resumen_resultados/evaluacion_Test_Bi.png", width = 677.4 , height = 364.416, units = "mm")
       
       
