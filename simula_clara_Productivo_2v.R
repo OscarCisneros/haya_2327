@@ -6,17 +6,17 @@ library(tidyverse)
 
 # Escenario
       # Denominación del escenario
-      escenario.nombre <- "H5"
+      escenario.nombre <- "Productivo_v2"
       
       #esquema de tratamientos
-      escenario.tratamiento <- read.delim("datos/escenarios/go_fagus/tratamientos_H5_IS_25.csv")
+      escenario.tratamiento <- read.delim("datos/escenarios/planes_comarcales_navarra/tratamientos_Productivo_IS_25.csv")
       
       # densidad inicial
-      N_ini = 5000
+      N_ini = 7000
       # densidad final
       N_fin = 125
       # clareo
-      clareo = 2000 #3500
+      clareo = 3250 #3500
       # extracción mínima en clara, m3/ha
       extrac_min = 40 #40
       
@@ -25,7 +25,7 @@ library(tidyverse)
       
       # rango de edades
       edad_ini <- 5
-      edad_fin <- 115
+      edad_fin <- 100
       
 #modelo de incremento individual
      # load("datos/mod_inc_diam_individual")
@@ -51,7 +51,7 @@ library(tidyverse)
       a10 = 0.0166602839868406
       
       # tasa de mortalidad natural en 5 años
-      mort_lustro = 0.02193159 #0.02141
+      mort_lustro = 0.02193159
       # parámetros del modelo de mortalidad SFA
       mort_interc <- 13.0752583
       mort_pend <- -1.9273713
@@ -108,10 +108,10 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
 
       # función de mortalidad
       func_mort <- function(N_, D_) {
-        N_extr_nat = N_*(1-mort_lustro) #no está clara que este sea un dato fiable, hay que revisar con las parcelas de claras
+        #N_extr_nat = N_*(1-mort_lustro) #no está clara que este sea un dato fiable, hay que revisar con las parcelas de claras
         N_extr_SFA = exp(mort_interc+log(D_)*mort_pend)
-        return(min(c(N_extr_nat,N_extr_SFA)))
-        #return(min(c(N_,N_extr_SFA)))
+        #return(min(c(N_extr_nat,N_extr_SFA)))
+        return(min(c(N_,N_extr_SFA)))
       }
       
       #función de densidad de Weibull con 3 parámetros
@@ -283,6 +283,93 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
 
         return(list(N_a_,Dg_a_,V_a_,dist_D_a_, N_d_,Dg_d_,V_d_,dist_D_d_))
       }
+      
+      # función de clara mixta
+      func_clara_mixta <- function(i_ = 5, v_extract = "N", perc_extract = 0.4,
+                                   perc_extrac_baja = 0.5, perc_extrac_alta = 0.5) {
+        
+        #distribución de diámetros antes de la clara
+        N_a_ = N_d[i_-1]
+        Dg_a_ = b0*N_a_^b1*Ho[i_]^b2
+        V_a_ = b3*Dg_a_^b4*Ho[i_]^b5*N_a_^b6
+        G_a_ = Dg_a_^2*pi*N_a_/40000
+        dist_D_a_ <- NA #no hace falta calcularlo
+        
+        param_= func_expande_Weibull(i_, Dg_a_, N_a_) #tiene en cuanta la variación de "a", diámetro mínimo
+        df_ <- data.frame(d_ = seq(round(param_[1]/0.5)*0.5,1000)) %>% #100 como diámetro superior, pero deberíamos parametrizarlo
+          mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_[1],param_[2],param_[3]))* N_a_) %>%
+          filter(!is.na(n_d)) 
+        
+
+
+        #función para contabilizar la parte de la clara por lo bajo
+        funcion_col_bajo <- function() {
+          
+          if(v_extract == "V") {
+            var_extract = perc_extract*perc_extrac_baja*V_a_
+          } else if (v_extract == "G") {
+            var_extract = perc_extract*perc_extrac_baja*G_a_
+          } else {
+            var_extract = perc_extract*perc_extrac_baja*N_a_
+          }
+          
+          df_bajo_ <- df_ %>%
+            mutate(diam2xN = d_^2*n_d) %>% #estimación de la relación diámetro-volumen, diámetro-área basimétrica
+            #mutate(multip = diam2xN/sum(diam2xN)) %>%
+            #mutate(multip_2 = multip*G_a_) %>%
+            mutate(var_prop = case_when(
+              v_extract == "V" ~ V_a_*diam2xN/sum(diam2xN), #volumen repartido proporcionalmente por diámetro
+              v_extract == "G" ~ G_a_*diam2xN/sum(diam2xN), #área basimétrica repartida proporcionalmente por diámetro
+              v_extract == "N" ~ n_d #n
+            )
+              ) %>% 
+            arrange(d_) %>% #operaciones para marcar los diámetros por lo bajo hasta V_extr
+            mutate(cum_ = cumsum(var_prop)) %>%
+            mutate(cum_1 = cum_- var_extract) %>%
+            mutate(signo_cum_= sign(cum_1)) %>%
+            mutate(diff_ = c(0, diff(signo_cum_))) %>%
+            #mutate(lag_diff = lead(diff_)) %>%
+            #mutate(mult = (signo_cum_ == -1)*vol_prop + (diff_ == 2)*lag(cum_1) ) %>%
+            mutate(mult = (signo_cum_ == -1)*var_prop + (diff_ == 2)*c(0, cum_1[1:(n()-1)]) + (c(sign(cum_1[[1]]) >=0, rep(0, n()-1)))*cum_1) %>%
+            mutate(vol_clase = abs(mult)) %>%
+            mutate(n_extraido_clase = vol_clase/var_prop*n_d) %>%
+            mutate(n_despues_clase = n_d - n_extraido_clase) %>%
+            filter(n_despues_clase > 0) 
+        }
+        
+        # df <- data.frame(d_ = seq(param_[1]+0.5,100)) %>% #100 como diámetro superior, pero deberíamos parametrizarlo
+        #   mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_[1],param_[2],param_[3]))* N_a_) %>%
+        #   mutate(n_d = floor(n_d)) %>%
+        #   mutate(diam2xN = d_^2*n_d) %>% #estimación de la relación diámetro-volumen
+        #   mutate(vol_prop = V_total*diam2xN/sum(diam2xN)) %>% #volumen repartido proporcionalmente por diámetro
+        #   #arrange(d_) %>% #operaciones para marcar los diámetros por lo bajo hasta V_extr
+        #   mutate(cum_ = cumsum(vol_prop)) %>%
+        #   mutate(cum_1 = cum_-V_extr) %>%
+        #   mutate(signo_cum_= sign(cum_1)) %>%
+        #   mutate(diff_ = c(0, diff(signo_cum_))) %>%
+        #   #mutate(lag_diff = lead(diff_)) %>%
+        #   #mutate(mult = (signo_cum_ == -1)*vol_prop + (diff_ == 2)*lag(cum_1) ) %>%
+        #   mutate(mult = (signo_cum_ == -1)*vol_prop + (diff_ == 2)* c(0, cum_1[1:(n()-1)]) ) %>%
+        #   mutate(vol_clase = abs(mult)) %>%
+        #   mutate(n_extraido_clase = vol_clase/vol_prop*n_d) %>%
+        #   mutate(n_despues_clase = n_d - n_extraido_clase) %>%
+        #   filter(n_despues_clase > 0) #eliminar las clases sin árboles
+        
+        #sumar el volumen antes de filtra las clases con árboles tras la clara
+        #se podrá hacer más compacto
+        
+        
+        N_d_ = sum(df$n_despues_clase)
+        Dg_d_ = sqrt(sum(df$n_despues_clase*(df$d_)^2)/sum(df$n_despues_clase))
+        #V_d_ = V_total-V_extr
+        #V_d_ = sum(df$vol_clase) + sum((df$vol_clase ==0)*df$vol_prop)
+        V_d_ <- V_total - V_extr
+        
+        dist_D_d_ <- df %>% select(d_, n_d)
+        
+        
+        return(list(N_a_,Dg_a_,V_a_,dist_D_a_, N_d_,Dg_d_,V_d_,dist_D_d_))
+      }
 
       # función de tratamiento
       # devuelve N_d
@@ -376,7 +463,7 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
            return(list(N_a_,Dg_a_,V_a_,dist_D_a_, N_d_,Dg_d_,V_d_,dist_D_d_))
            
          #} else if (tratam_ == "clara por lo bajo") {
-         } else if (tratam_ %in% c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria 1", "aclaratoria")) {
+         } else if (tratam_ %in% c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria 1", "aclaratoria","clara selectiva")) {
            func_clara_bajo(i_= i_)
          } else if (tratam_ == "final") {
            #antes
@@ -414,7 +501,8 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
       # 2. Avance secuencial
       
       i = 2
-      for (i in c(2:nrow(escenario.tratamiento))) { 
+      #for (i in c(2:nrow(escenario.tratamiento))) { 
+      for (i in c(2:4)) { 
         #N_a[i] <- N_d[i-1]
         print(i)
         avance_ <- func_trat(tratam = escenario.tratamiento$tratamiento[i], i_ = i)
