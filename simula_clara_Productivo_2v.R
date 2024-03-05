@@ -337,6 +337,36 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
             filter(n_despues_clase > 0) 
         }
         
+        
+        funcion_col_alto <- function() {
+          
+          if(v_extract == "V") {
+            var_extract = perc_extract*perc_extrac_alta*V_a_
+          } else if (v_extract == "G") {
+            var_extract = perc_extract*perc_extrac_alta*G_a_
+          } else {
+            var_extract = perc_extract*perc_extrac_alta*N_a_
+          }
+          
+          df_alto_ <- df_bajo_ %>%
+            select(d_, n_d) %>%
+            mutate(diam2xN = d_^2*n_d) %>% #estimación de la relación diámetro-volumen, diámetro-área basimétrica
+            #mutate(multip = diam2xN/sum(diam2xN)) %>%
+            #mutate(multip_2 = multip*G_a_) %>%
+            mutate(var_prop = case_when(
+              v_extract == "V" ~ V_a_*diam2xN/sum(diam2xN), #volumen repartido proporcionalmente por diámetro
+              v_extract == "G" ~ G_a_*diam2xN/sum(diam2xN), #área basimétrica repartida proporcionalmente por diámetro
+              v_extract == "N" ~ n_d #n
+            )
+            ) %>% 
+            filter(round(n_d) > 0) %>%
+            arrange(desc(d_)) %>%
+            mutate(var_extr_x_clase = var_extract*var_prop/sum(var_prop)) %>%
+            mutate(n_extraido_clase = var_extr_x_clase/var_prop*n_d) %>%
+            mutate(n_despues_clase = n_d - n_extraido_clase) %>%
+            filter(n_despues_clase > 0) 
+        }
+        
         # df <- data.frame(d_ = seq(param_[1]+0.5,100)) %>% #100 como diámetro superior, pero deberíamos parametrizarlo
         #   mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_[1],param_[2],param_[3]))* N_a_) %>%
         #   mutate(n_d = floor(n_d)) %>%
