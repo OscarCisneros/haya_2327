@@ -369,11 +369,42 @@ library(tidyverse)
       # Function call to load data. Tables on vector "TABLES"
       PCParcelas_tiempo <- PCParcelas_Ifn4 %>%
         filter(Cla == "A" & Subclase == 1) %>% #parcelas medidas también en el Ifn3
-        select(Provincia, Estadillo, FechaIni) %>%
+        distinct(Provincia, Estadillo, FechaIni) %>% #hay datos duplicados, p.e. Pronvincia 31, Estadillo 2
         rename(Fecha_Ifn4 = FechaIni) %>%
-        left_join(PCParcelas_Ifn3 %>% select(Provincia, Estadillo, FechaIni) %>% rename(Fecha_Ifn3 = FechaIni)) %>%
+        left_join(PCParcelas_Ifn3 %>% 
+                    filter(Cla == "A" & Subclase == 1) %>% #Para evitar duplicados de fecha, son parcelas bien identificadas y remedidas
+                    select(Provincia, Estadillo, FechaIni) %>% rename(Fecha_Ifn3 = FechaIni)) %>%
         mutate(dias = difftime(Fecha_Ifn4, Fecha_Ifn3)) %>%
         mutate(anno = as.numeric(dias)/365)
+      
+      #hay duplicados en PCMayores_Ifn4, p.e. Provincia == 31, Estadillo == 469
+      PCMayores_Ifn3 <- PCMayores_Ifn3 %>% distinct()
+      
+      PCMayores_Ifn3_haya_depura_1 <- PCMayores_Ifn3 %>%
+        mutate(Dn = (Dn1+Dn2)/20) %>%
+        mutate(factor_exp = case_when(
+          Dn < 12.5 ~ 10000/(pi*5^2), 
+          Dn >= 12.5 & Dn < 22.5 ~ 10000/(pi*10^2),
+          Dn >= 22.5 & Dn < 42.5 ~ 10000/(pi*15^2),
+          Dn >= 42.5 ~ 10000/(pi*25^2)
+        )) %>%
+        rename(Clase = Cla) %>%
+        mutate(retener_0 = !(OrdenIf3 %in% c(0,444,555,666,777,888,999))) %>% #se marcan árboles que no se van a contabilizar en las métricas de parcela
+        group_by(Provincia, Estadillo, Clase, Subclase, Especie) %>%
+        summarise(ab = sum(retener_0*factor_exp*pi*(Dn/200)^2),
+                  dgm = sqrt(sum(retener_0*factor_exp*Dn^2)/sum(retener_0*factor_exp)),
+                  n = sum(retener_0*factor_exp)) %>%
+        ungroup() %>%
+        na.omit() %>%
+        group_by(Provincia, Estadillo, Clase, Subclase) %>%
+        mutate(ab_perc = ab/sum(ab)) %>%
+        mutate(retener = ifelse(71 %in% Especie,1,0)) %>%
+        mutate(ab_haya_perc = (Especie ==71)*ab_perc) %>%
+        filter(sum(ab_haya_perc)>= ab_limite) %>%
+        ungroup() %>%
+        filter(ab_haya_perc==1) %>%
+        select(-retener, -ab_haya_perc) 
+      
       
       PCParcelas_mort <- PCMayores_Ifn4_haya_depura_2 %>%
         select(Provincia, Estadillo, Especie, n_mort) %>%

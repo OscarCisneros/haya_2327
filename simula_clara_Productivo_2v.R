@@ -6,13 +6,19 @@ library(tidyverse)
 
 # Escenario
       # Denominación del escenario
-      escenario.nombre <- "Productivo_v2"
+      escenario.nombre <- "prueba_IS_25_conversion_alto_selv_macizo_pir"
+      grupo <- "selv_macizo_pirenaico"
       
       #esquema de tratamientos. En este caso, los decimales son comas
-      escenario.tratamiento_0 <- read.csv2("datos/escenarios/planes_comarcales_navarra/prueba_IS_25.csv", sep = ";")
+      #escenario.tratamiento_0 <- read.csv2("datos/escenarios/go_fagus/prueba_H5_IS_25.csv", sep = ";")
+      #escenario.tratamiento_0 <- read.csv2("datos/escenarios/planes_comarcales_navarra/prueba_IS_25_cod_5_1_8_17.csv", sep = ";")
+      #escenario.tratamiento_0 <- read.csv2("datos/escenarios/CNPF/Prueba_Monte_bajo_CNPF.csv", sep = ";")
+      escenario.tratamiento_0 <- read.csv2(paste0("datos/escenarios/", grupo,"/prueba_IS_25_conversion_alto.csv"), sep = ";")
+      
+      
       
       # densidad inicial
-      N_ini = 7000
+      N_ini = 3000
       # densidad final
      # N_fin = 125
       # clareo
@@ -120,8 +126,8 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
         #N_extr_nat = N_*(1-mort_lustro) #no está clara que este sea un dato fiable, hay que revisar con las parcelas de claras
         N_extr_nat = N_*(1-mort_anual) #no está clara que este sea un dato fiable, hay que revisar con las parcelas de claras
         N_extr_SFA = exp(mort_interc+log(D_)*mort_pend)
-        #return(min(c(N_extr_nat,N_extr_SFA)))
-        return(min(c(N_,N_extr_SFA)))
+        return(min(c(N_extr_nat,N_extr_SFA)))
+        #return(min(c(N_,N_extr_SFA)))
       }
       
       #función de densidad de Weibull con 3 parámetros
@@ -196,43 +202,43 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
 
       # función de clara por lo bajo
       # func_clara_bajo <- function(i_ = 1) {
-      #   N_a_ = N_d[i_-1]
-      #   Dg_a_ = b0*N_a_^b1*Ho[i_]^b2
-      #   V_a_ = b3*Dg_a_^b4*Ho[i_]^b5*N_a_^b6
-      #   dist_D_a_ <- NA #no hace falta calcularlo
-      #   
-      #   V_total = V_a_
-      #   V_extr = extrac_min
-      #   #V_total =  b3*Dg_^b4*Ho[i]^b5*N_^b6
-      #   
-      #   param_= func_expande_Weibull(i_, Dg_a_, N_a_) #tiene en cuanta la variación de "a", diámetro mínimo
-      #   df <- data.frame(d_ = seq(round(param_[1]/0.5)*0.5,150)) %>% #150 como diámetro superior, pero deberíamos parametrizarlo
-      #     mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_[1],param_[2],param_[3]))* N_a_) %>%
-      #     filter(!is.na(n_d)) %>% #inf cuando el redondeo está por debajo del diámetro inferior (param[1])
-      #     #mutate(n_d = floor(n_d)) %>%
-      #     mutate(diam2xN = d_^2*n_d) %>% #estimación de la relación diámetro-volumen
-      #     mutate(vol_prop = V_total*diam2xN/sum(diam2xN)) %>% #volumen repartido proporcionalmente por diámetro
-      #     #arrange(d_) %>% #operaciones para marcar los diámetros por lo bajo hasta V_extr
-      #     mutate(cum_ = cumsum(vol_prop)) %>%
-      #     mutate(cum_1 = cum_-V_extr) %>%
-      #     mutate(signo_cum_= sign(cum_1)) %>%
-      #     mutate(diff_ = c(0, diff(signo_cum_))) %>%
-      #     #mutate(lag_diff = lead(diff_)) %>%
-      #     #mutate(mult = (signo_cum_ == -1)*vol_prop + (diff_ == 2)*lag(cum_1) ) %>%
-      #     mutate(mult = (signo_cum_ == -1)*vol_prop + (diff_ == 2)* c(0, cum_1[1:(n()-1)]) + (c(sign(cum_1[[1]]) >=0,rep(0, n()-1)))*cum_1) %>%
-      #     mutate(vol_clase = abs(mult)) %>%
-      #     mutate(n_extraido_clase = vol_clase/vol_prop*n_d) %>%
-      #     mutate(n_despues_clase = n_d - n_extraido_clase) %>%
-      #     filter(n_despues_clase > 0) #eliminar las clases sin árboles
-      #     
-      # 
-      #   N_d_ = sum(df$n_despues_clase)
-      #   Dg_d_ = sqrt(sum(df$n_despues_clase*(df$d_)^2)/sum(df$n_despues_clase))
-      #   #V_d_ = V_total-V_extr
-      #   #V_d_ = sum(df$vol_clase) + sum((df$vol_clase ==0)*df$vol_prop)
-      #   V_d_ <- V_total - V_extr
-      # 
-      #   dist_D_d_ <- df %>% select(d_, n_d)
+        # N_a_ = N_d[i_-1]
+        # Dg_a_ = b0*N_a_^b1*Ho[i_]^b2
+        # V_a_ = b3*Dg_a_^b4*Ho[i_]^b5*N_a_^b6
+        # dist_D_a_ <- NA #no hace falta calcularlo
+        # 
+        # V_total = V_a_
+        # V_extr = extrac_min
+        # #V_total =  b3*Dg_^b4*Ho[i]^b5*N_^b6
+        # 
+        # param_= func_expande_Weibull(i_, Dg_a_, N_a_) #tiene en cuanta la variación de "a", diámetro mínimo
+        # df <- data.frame(d_ = seq(round(param_[1]/0.5)*0.5,150)) %>% #150 como diámetro superior, pero deberíamos parametrizarlo
+        #   mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_[1],param_[2],param_[3]))* N_a_) %>%
+        #   filter(!is.na(n_d)) %>% #inf cuando el redondeo está por debajo del diámetro inferior (param[1])
+        #   #mutate(n_d = floor(n_d)) %>%
+        #   mutate(diam2xN = d_^2*n_d) %>% #estimación de la relación diámetro-volumen
+        #   mutate(vol_prop = V_total*diam2xN/sum(diam2xN)) %>% #volumen repartido proporcionalmente por diámetro
+        #   #arrange(d_) %>% #operaciones para marcar los diámetros por lo bajo hasta V_extr
+        #   mutate(cum_ = cumsum(vol_prop)) %>%
+        #   mutate(cum_1 = cum_-V_extr) %>%
+        #   mutate(signo_cum_= sign(cum_1)) %>%
+        #   mutate(diff_ = c(0, diff(signo_cum_))) %>%
+        #   #mutate(lag_diff = lead(diff_)) %>%
+        #   #mutate(mult = (signo_cum_ == -1)*vol_prop + (diff_ == 2)*lag(cum_1) ) %>%
+        #   mutate(mult = (signo_cum_ == -1)*vol_prop + (diff_ == 2)* c(0, cum_1[1:(n()-1)]) + (c(sign(cum_1[[1]]) >=0,rep(0, n()-1)))*cum_1) %>%
+        #   mutate(vol_clase = abs(mult)) %>%
+        #   mutate(n_extraido_clase = vol_clase/vol_prop*n_d) %>%
+        #   mutate(n_despues_clase = n_d - n_extraido_clase) %>%
+        #   filter(n_despues_clase > 0) #eliminar las clases sin árboles
+        # 
+        # 
+        # N_d_ = sum(df$n_despues_clase)
+        # Dg_d_ = sqrt(sum(df$n_despues_clase*(df$d_)^2)/sum(df$n_despues_clase))
+        # #V_d_ = V_total-V_extr
+        # #V_d_ = sum(df$vol_clase) + sum((df$vol_clase ==0)*df$vol_prop)
+        # V_d_ <- V_total - V_extr
+        # 
+        # dist_D_d_ <- df %>% select(d_, n_d)
       #   
       # 
       #   return(list(N_a_,Dg_a_,V_a_,dist_D_a_, N_d_,Dg_d_,V_d_,dist_D_d_))
@@ -538,12 +544,12 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
   para_excel_res <- res[nombres_exc] %>%
     mutate(across(is.numeric, round, digits=1))
   
-  write.xlsx(para_excel_res, paste0("resultados/simulaciones/",escenario.nombre,"_IS_",IS,".xlsx"))
+  write.xlsx(para_excel_res, paste0("resultados/simulaciones/",grupo,"/",escenario.nombre,"_IS_",IS,".xlsx"))
   
   para_excel_solo_trat <- para_excel_res %>%
     filter(Edad %in% seq(5,500, by=5) | tratamiento %in% c("final","clareo",tipos_claras)) %>%
     left_join(escenario.tratamiento_0 %>% rename(Edad = edad))
   
-  write.xlsx(para_excel_solo_trat, paste0("resultados/simulaciones/",escenario.nombre,"_IS_",IS,"_resumido.xlsx"))
+  write.xlsx(para_excel_solo_trat, paste0("resultados/simulaciones/",grupo,"/",escenario.nombre,"_IS_",IS,"_resumido.xlsx"))
   #write.csv2(res, "res_H1_primera.csv")
   

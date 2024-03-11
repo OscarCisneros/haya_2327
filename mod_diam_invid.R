@@ -24,7 +24,6 @@ m.Richards <- nlsLM(
 summary(m.Richards)
 
 
-
 m.Gompertz <- nlsLM(
   inc_an  ~ (a1*Ho_ifn3^a2 + a3*ab_ifn3 + a4*(Dn_ifn3/dgm_ifn3)) * 
     (exp(-b2*exp(-b3*Dn_ifn3)-b3*Dn_ifn3)),
