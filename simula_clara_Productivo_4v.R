@@ -1,4 +1,5 @@
 #Simulación de clara
+#cálculo del diámetro medio cuadrático según el modelo de incremento
 
 library(openxlsx)
 library(tidyverse)
@@ -6,15 +7,15 @@ library(tidyverse)
 
 # Escenario
       # Denominación del escenario
-      escenario.nombre <- "prueba_IS_25_conversion_alto_selv_macizo_pir"
-      grupo <- "go_fagus"
+      escenario.nombre <- "prueba_H5_IS_25_conversion_02_08"
+      grupo <- "selv_macizo_pirenaico" #"go_fagus"
       
       #esquema de tratamientos. En este caso, los decimales son comas
       #escenario.tratamiento_0 <- read.csv2("datos/escenarios/go_fagus/prueba_H5_IS_25.csv", sep = ";")
       #escenario.tratamiento_0 <- read.csv2("datos/escenarios/planes_comarcales_navarra/prueba_IS_25_cod_5_1_8_17.csv", sep = ";")
       #escenario.tratamiento_0 <- read.csv2("datos/escenarios/CNPF/Prueba_Monte_bajo_CNPF.csv", sep = ";")
       #escenario.tratamiento_0 <- read.csv2(paste0("datos/escenarios/", grupo,"/prueba_IS_25_conversion_alto.csv"), sep = ";")
-      escenario.tratamiento_0 <- read.csv2(paste0("datos/escenarios/",grupo,"/prueba_H5_IS_25.csv"), sep = ";")
+      #escenario.tratamiento_0 <- read.csv2(paste0("datos/escenarios/",grupo,"/prueba_H5_IS_25_mixtas_02_08.csv"), sep = ";")
       
       
       # densidad inicial
@@ -37,7 +38,7 @@ library(tidyverse)
       tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria 1", "aclaratoria","clara selectiva","corta preparatoria","corta diseminatoria")
       
 #modelo de incremento individual
-     # load("datos/mod_inc_diam_individual")
+     load("datos/mod_inc_diam_individual")
       
 #modelo de diámetro mínimo
       load("resultados/mod_diam_min/lm_dim_min_reg")
@@ -266,7 +267,22 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
         
         #distribución de diámetros antes de la clara
         N_a_ = N_d[i_-1]
-        Dg_a_ = b0*N_a_^b1*Ho[i_]^b2
+        #Dg_a_ = b0*N_a_^b1*Ho[i_]^b2
+        #cálculo de Dg_a a partir del modelo de incremento
+        if (class(dist_D_d[[i_-1]]) == "data.frame") {
+          newdata_ <- dist_D_d[[i_-1]] %>%
+            rename(Dn_ifn3 = d_) %>%
+            mutate (Ho_ifn3 = Ho[i_-1],
+                                ab_ifn3 = (Dg_d[i_-1])^2*pi*(N_d[i_-1])/40000,
+                                dgm_ifn3 = Dg_d[i_-1])
+          inc_ <- predict(m.Richards, newdata = newdata_)
+          d_con_inc_ <- newdata_ %>%
+            mutate(predicho = Dn_ifn3+inc_) %>%
+            summarise(dg_ = sqrt(sum(n_d*predicho^2)/sum(n_d)))
+          Dg_a_ = d_con_inc_[[1]]
+        } else {
+          Dg_a_ = b0*N_a_^b1*Ho[i_]^b2
+        }
         V_a_ = b3*Dg_a_^b4*Ho[i_]^b5*N_a_^b6
         G_a_ = Dg_a_^2*pi*N_a_/40000
         dist_D_a_ <- NA #no hace falta calcularlo
@@ -352,12 +368,13 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
           mutate(vol_prop = V_a_*diam2xN/sum(diam2xN)) %>%
           mutate(vol_prop_indiv = vol_prop/n_d) %>%
           select(d_, vol_prop_indiv)
-       
+
         dis_vol_despues <- df_alto_ %>%
           left_join(dist_vol_antes) %>%
           mutate(vol_desp = vol_prop_indiv*n_d)
-        
-         V_d_ <- sum(dis_vol_despues$vol_desp)
+
+        V_d_ <- sum(dis_vol_despues$vol_desp)
+        #V_d_ = b3*Dg_d_^b4*Ho[i_]^b5*N_d_^b6
         
         dist_D_d_ <- df_alto_ %>% select(d_, n_d)
         

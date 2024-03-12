@@ -1,4 +1,5 @@
 #Simulación de clara
+#compensación del volumen tras la clara según la ecuación de GoFagus (V~f(N,Dg))
 
 library(openxlsx)
 library(tidyverse)
@@ -6,7 +7,7 @@ library(tidyverse)
 
 # Escenario
       # Denominación del escenario
-      escenario.nombre <- "prueba_IS_25_conversion_alto_selv_macizo_pir"
+      escenario.nombre <- "prueba_H5_IS_25"
       grupo <- "go_fagus"
       
       #esquema de tratamientos. En este caso, los decimales son comas
@@ -347,17 +348,18 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
         Dg_d_ = sqrt(sum(df_alto_$n_despues_clase*(df_alto_$d_)^2)/sum(df_alto_$n_despues_clase))
         
         #Volumen después de la clara, calculado como % de los diámetros que han quedado respecto al inicial
-        dist_vol_antes <- df_ %>%
-          mutate(diam2xN = d_^2*n_d) %>% #estimación de la relación diámetro-volumen
-          mutate(vol_prop = V_a_*diam2xN/sum(diam2xN)) %>%
-          mutate(vol_prop_indiv = vol_prop/n_d) %>%
-          select(d_, vol_prop_indiv)
-       
-        dis_vol_despues <- df_alto_ %>%
-          left_join(dist_vol_antes) %>%
-          mutate(vol_desp = vol_prop_indiv*n_d)
+        # dist_vol_antes <- df_ %>%
+        #   mutate(diam2xN = d_^2*n_d) %>% #estimación de la relación diámetro-volumen
+        #   mutate(vol_prop = V_a_*diam2xN/sum(diam2xN)) %>%
+        #   mutate(vol_prop_indiv = vol_prop/n_d) %>%
+        #   select(d_, vol_prop_indiv)
+        # 
+        # dis_vol_despues <- df_alto_ %>%
+        #   left_join(dist_vol_antes) %>%
+        #   mutate(vol_desp = vol_prop_indiv*n_d)
         
-         V_d_ <- sum(dis_vol_despues$vol_desp)
+        # V_d_ <- sum(dis_vol_despues$vol_desp)
+        V_d_ = b3*Dg_d_^b4*Ho[i_]^b5*N_d_^b6
         
         dist_D_d_ <- df_alto_ %>% select(d_, n_d)
         
