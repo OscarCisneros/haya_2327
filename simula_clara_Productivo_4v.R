@@ -2,13 +2,15 @@
 #cálculo del diámetro medio cuadrático según el modelo de incremento
 
 library(openxlsx)
+library(zoo)
 library(tidyverse)
+
 #library(NLRoot)
 
 # Escenario
       # Denominación del escenario
-      escenario.nombre <- "prueba_H5_IS_25_conversion_02_08"
-      grupo <- "selv_macizo_pirenaico" #"go_fagus"
+      escenario.nombre <- "H5_IS25_media"
+      grupo <- "go_fagus" #"go_fagus" "selv_macizo_pirenaico"
       
       #esquema de tratamientos. En este caso, los decimales son comas
       #escenario.tratamiento_0 <- read.csv2("datos/escenarios/go_fagus/prueba_H5_IS_25.csv", sep = ";")
@@ -16,6 +18,7 @@ library(tidyverse)
       #escenario.tratamiento_0 <- read.csv2("datos/escenarios/CNPF/Prueba_Monte_bajo_CNPF.csv", sep = ";")
       #escenario.tratamiento_0 <- read.csv2(paste0("datos/escenarios/", grupo,"/prueba_IS_25_conversion_alto.csv"), sep = ";")
       #escenario.tratamiento_0 <- read.csv2(paste0("datos/escenarios/",grupo,"/prueba_H5_IS_25_mixtas_02_08.csv"), sep = ";")
+      escenario.tratamiento_0 <- read.csv2(paste0("datos/escenarios/",grupo,"/H5_IS25_media.csv"), sep = ";")
       
       
       # densidad inicial
@@ -32,7 +35,7 @@ library(tidyverse)
       
       # rango de edades
       edad_ini <- 1
-      edad_fin <- 115
+      edad_fin <- max(escenario.tratamiento_0$edad)
       
 #Denominación de las claras tratadas con la función de claras mixtas
       tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria 1", "aclaratoria","clara selectiva","corta preparatoria","corta diseminatoria")
@@ -547,6 +550,16 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
     mutate(Crec_medio_ = Crec_Vt_/Edad) %>%
     mutate(Crec_corr_ = diff_Crec_Vt/c(0,diff(Edad)))
   
+  #Suavizar el dato de Crec_corr_
+  # library(splines)
+  # 
+  # m.Crec_corr <-lm(res$Crec_corr_~bs(res$Edad ))
+  #res$Crec_corr_ <- c(0, predict(m.Crec_corr))
+  
+  res$Crec_corr_ <- rollmedian(res$Crec_corr_, 5, fill = "extend")
+  res$Crec_corr <-  res$Crec_corr_
+  
+  
   #Para eliminar inf, -inf y NA se pasan todo a NA y luego a cero
   res <- res %>% mutate_if(is.numeric, list(~na_if(., Inf))) %>% 
     mutate_if(is.numeric, list(~na_if(., -Inf)))
@@ -565,8 +578,40 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
   
   para_excel_solo_trat <- para_excel_res %>%
     filter(Edad %in% seq(5,500, by=5) | tratamiento %in% c("final","clareo",tipos_claras)) %>%
+    mutate(Stems = ifelse(Edad %in% seq(5,500, by=5), 1, 0)) %>%
+    mutate(CAI = Stems*Crec_corr_) %>%
+    mutate(Thinning_Harvest = ifelse(tratamiento %in% c("final","clareo",tipos_claras),1,0)) %>%
+    mutate(Fraction_removed = Thinning_Harvest*round(V_e_/V_a_,2)) %>%
+    mutate(B_hoja = 0.0167*Dg_a_^2.951*Ho_^-1.101, #Batelink 1997
+           B_fuste = exp(0.23272^2/2)*exp(-1.63732)*Dg_a_^2.21464,
+           B_rama7 = exp(0.62932^2/2)*exp(-10.811)*Dg_a_^4.08961,
+           B_rama2_7 = exp(0.333796^2/2)*exp(-3.86719)*Dg_a_^2.34551,
+           B_rama2 = exp(0.425041^2/2)*exp(-2.57396)*Dg_a_^1.84345,
+           # B_raiz_1 = exp(0.459735^2/2)*exp(-1.72224)*Dg_a_^1.25755, #la del manual, no parece correcta
+           B_raiz = 0.106*Dg_a_^2 #de la tesis de Ricardo
+           ) %>%
+    mutate(B_rama = B_rama7+B_rama2_7+B_rama2) %>%
+    mutate(Rel_growth_foliage = round(B_hoja/B_fuste,3),
+           Rel_growth_branches = round(B_rama/B_fuste,3),
+           Rel_growth_roots = round(B_raiz/B_fuste,3)) %>%
+    mutate(v_carp_1 = V_a_/(1+exp(5.77198-0.05681*G_a_)), #volumen de carpintería
+           v_carp_2 = V_a_/(1+exp(5.2144536-0.0015091*N_a_-0.0855058*Dg_a_+0.0376535*Ho_)),
+           v_carp_3 = V_a_/(1+exp(2.0558913+0.0712104*Ho_-0.0003358*Dg_a_^2-0.0233621*G_a_)),
+           v_carp_4 = V_a_/(1+exp(2.1768173+0.0020481*N_a_-0.0452115*G_a_+0.0579457*Ho_))) %>%
+    mutate(V_carp = v_carp_1+v_carp_2+v_carp_3+v_carp_4) %>%
+    mutate(V_carp = ifelse(V_carp >= V_a_, V_a_, V_carp)) %>%
+    mutate(V_carp = ifelse(Dg_a_ >= 20, V_carp, 0)) %>% #sólo se considera para sierra por encima de 20 cm
+    mutate(Stems_log_wood = round(V_carp/V_a_,3)) %>%
+    mutate(Stems_pulp_pap = 1-Stems_log_wood) %>%
     left_join(escenario.tratamiento_0 %>% rename(Edad = edad))
   
   write.xlsx(para_excel_solo_trat, paste0("resultados/simulaciones/",grupo,"/",escenario.nombre,"_IS_",IS,"_resumido.xlsx"))
-  #write.csv2(res, "res_H1_primera.csv")
+
+  #resumen para CO2Fix
+  para_CO2fix <- para_excel_solo_trat %>%
+    select(Edad,Ho_,N_a_,Dg_a_,tratamiento,Stems,CAI, Rel_growth_foliage, Rel_growth_branches, Rel_growth_roots,
+           Thinning_Harvest,Fraction_removed,Stems_log_wood, Stems_pulp_pap) 
+  write.xlsx(para_CO2fix, paste0("resultados/simulaciones/",grupo,"/",escenario.nombre,"_IS_",IS,"_CO2Fix.xlsx"))
+  
+  
   
