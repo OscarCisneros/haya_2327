@@ -1,11 +1,12 @@
 #gráfico de evolución de distribución diamétrica
 
 funcion_evol_dist_D <- function(id) {
-  oo <- dist_D_a[[id]] %>%
-    mutate(edad = 5*id)
+  oo <- dist_D_d[[id]] %>%
+   # mutate(edad = 5*id)
+    mutate(edad = id)
 }
 
-ejemp_evol_dist_D <- map_dfr(seq(3,23), ~funcion_evol_dist_D(.[1]))
+ejemp_evol_dist_D <- map_dfr(c(60,75,90,105,125,140,150), ~funcion_evol_dist_D(.[1]))
 
 ggplot(ejemp_evol_dist_D, aes(x=d_, y= n_d, color=as.factor(edad)))+
   geom_bar(stat="identity", position=position_dodge())+

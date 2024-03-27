@@ -9,8 +9,12 @@ library(tidyverse)
 
 # Escenario
       # Denominación del escenario
-      escenario.nombre <- "H5_IS25_media"
-      grupo <- "go_fagus" #"go_fagus" "selv_macizo_pirenaico"
+      escenario.nombre <- "cod_1_1_8_17_IS16_alta"
+      grupo <- "prueba" #"go_fagus" "selv_macizo_pirenaico"
+      # densidad inicial
+      N_ini = 7000
+      # calidad de estación
+      IS = 16
       
       #esquema de tratamientos. En este caso, los decimales son comas
       #escenario.tratamiento_0 <- read.csv2("datos/escenarios/go_fagus/prueba_H5_IS_25.csv", sep = ";")
@@ -18,11 +22,10 @@ library(tidyverse)
       #escenario.tratamiento_0 <- read.csv2("datos/escenarios/CNPF/Prueba_Monte_bajo_CNPF.csv", sep = ";")
       #escenario.tratamiento_0 <- read.csv2(paste0("datos/escenarios/", grupo,"/prueba_IS_25_conversion_alto.csv"), sep = ";")
       #escenario.tratamiento_0 <- read.csv2(paste0("datos/escenarios/",grupo,"/prueba_H5_IS_25_mixtas_02_08.csv"), sep = ";")
-      escenario.tratamiento_0 <- read.csv2(paste0("datos/escenarios/",grupo,"/H5_IS25_media.csv"), sep = ";")
+      escenario.tratamiento_0 <- read.csv2(paste0("datos/escenarios/",grupo,"/",escenario.nombre,".csv"), sep = ";")
       
       
-      # densidad inicial
-      N_ini = 5000
+      
       # densidad final
      # N_fin = 125
       # clareo
@@ -30,9 +33,7 @@ library(tidyverse)
       # extracción mínima en clara, m3/ha
      # extrac_min = 40 #40
       
-      # calidad de estación
-      IS = 25
-      
+     
       # rango de edades
       edad_ini <- 1
       edad_fin <- max(escenario.tratamiento_0$edad)
@@ -594,14 +595,14 @@ mod_evol_D <- data.frame(id = ifelse(escenario.tratamiento$tratamiento == "", NA
     mutate(Rel_growth_foliage = round(B_hoja/B_fuste,3),
            Rel_growth_branches = round(B_rama/B_fuste,3),
            Rel_growth_roots = round(B_raiz/B_fuste,3)) %>%
-    mutate(v_carp_1 = V_a_/(1+exp(5.77198-0.05681*G_a_)), #volumen de carpintería
-           v_carp_2 = V_a_/(1+exp(5.2144536-0.0015091*N_a_-0.0855058*Dg_a_+0.0376535*Ho_)),
-           v_carp_3 = V_a_/(1+exp(2.0558913+0.0712104*Ho_-0.0003358*Dg_a_^2-0.0233621*G_a_)),
-           v_carp_4 = V_a_/(1+exp(2.1768173+0.0020481*N_a_-0.0452115*G_a_+0.0579457*Ho_))) %>%
+    mutate(v_carp_1 = V_e_/(1+exp(5.77198-0.05681*G_a_)), #volumen de carpintería
+           v_carp_2 = V_e_/(1+exp(5.2144536-0.0015091*N_a_-0.0855058*Dg_a_+0.0376535*Ho_)),
+           v_carp_3 = V_e_/(1+exp(2.0558913+0.0712104*Ho_-0.0003358*Dg_a_^2-0.0233621*G_a_)),
+           v_carp_4 = V_e_/(1+exp(2.1768173+0.0020481*N_a_-0.0452115*G_a_+0.0579457*Ho_))) %>%
     mutate(V_carp = v_carp_1+v_carp_2+v_carp_3+v_carp_4) %>%
-    mutate(V_carp = ifelse(V_carp >= V_a_, V_a_, V_carp)) %>%
+    mutate(V_carp = ifelse(V_carp >= V_e_, V_e_, V_carp)) %>%
     mutate(V_carp = ifelse(Dg_a_ >= 20, V_carp, 0)) %>% #sólo se considera para sierra por encima de 20 cm
-    mutate(Stems_log_wood = round(V_carp/V_a_,3)) %>%
+    mutate(Stems_log_wood = ifelse(V_carp == 0, 0,round(V_carp/V_e_,3))) %>%
     mutate(Stems_pulp_pap = 1-Stems_log_wood) %>%
     left_join(escenario.tratamiento_0 %>% rename(Edad = edad))
   

@@ -134,6 +134,6 @@ IFN_3_sin_outlier <- PCMayores_Ifn3_haya_compara %>%
 #diagnose_numeric(bb)
 
 ############## DG_ sin ouliers
-m.V_IFN3 <- lm(log(V_ifn3)~ log(dgm_ifn3)+log(Ho_ifn3)+log(n_ifn3),
+m.V_IFN3 <- lm(log(V_ifn3) ~ log(dgm_ifn3)+log(Ho_ifn3)+log(n_ifn3),
                   data = IFN_3_sin_outlier %>% filter(!outl_inc))
 summary(m.V_IFN3)
