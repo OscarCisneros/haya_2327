@@ -422,12 +422,12 @@ library(tidyverse)
       ########### Mortalidad inventariada ----
       #000: pies cortados; 444: pies no encontrados pero probablemente no cortados
       #888: pies muertos
-      
-     PCMortalidad_Ifn4 <- PCMayores_Ifn4_haya_depura_2 %>%
-        filter(Clase == "A" & Subclase == 1) %>% #parcelas medidas también en el Ifn3
-        mutate(muerto = ifelse())
-
-      ggplot(PCMayores_Ifn4_haya_depura_2, aes(x=dgm, y = (n_mort/n)))+geom_point()
+     #  
+     # PCMortalidad_Ifn4 <- PCMayores_Ifn4_haya_depura_2 %>%
+     #    filter(Clase == "A" & Subclase == 1) %>% #parcelas medidas también en el Ifn3
+     #    mutate(muerto = ifelse())
+     # 
+     #  ggplot(PCMayores_Ifn4_haya_depura_2, aes(x=dgm, y = (n_mort/n)))+geom_point()
       
 # 
 # PCEspParc_haya <- PCEspParc %>% filter(Especie == 71) %>% count(Estadillo)
