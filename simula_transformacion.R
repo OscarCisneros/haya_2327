@@ -12,7 +12,7 @@ library(tidyverse)
   t_fin = 200
 
   #Índice de sitio, se asimilan las calidades mala, media, buena... a las de montes regulares
-  IS = 22
+  IS = 25
 
   #Datos del monte regular
   N_reg <- 700
@@ -39,6 +39,16 @@ library(tidyverse)
   
   #tarifa de volumen
   load("datos/lm.vcc")
+  
+  #modelo de incremento en área basimétrica
+  load("datos/mod_inc_area_basim_indiv")
+  
+  #corrección del crecimiento diametral
+  load("datos/correc_calidad_irreg")
+  correc_calidad_irreg$calidad <- c(13,16,19,22,25)
+  int_corr_ab <- correc_calidad_irreg$intercept[which(correc_calidad_irreg$calidad == IS)]
+  slo_corr_ab <- correc_calidad_irreg$pendiente[which(correc_calidad_irreg$calidad == IS)]
+  
   
   # parámetros relación Dm ~ f(Dg, N, G)
   # se emplea la relación de masas regulares
@@ -171,84 +181,188 @@ library(tidyverse)
       select(-extra_, -suma_extra_N,-suma_extra_G,-suma_extra_V) 
   
   #variables dasocráticas iniciales
-  N_a[1] = sum(df_$n_d)
-  Dg_a[1] = sqrt(sum(df_$n_d*(df_$d_)^2)/sum(df_$n_d))
-  dist_D_a[1] = df_
-  G_a[1] = sum(df_$ab)
-  V_a[1] = sum(df_$vol)
-  
-  #unir la distribución objetivo y la actual
-  distribucion_act <- N_x5 %>%
-    left_join(df_clase) 
-  i=1
-  
-  if (G_a[i] <= ab_objetivo*(1+precis_ab)) { #no se interviene
-    N_d[i] = N_a[i]
-    Dg_d[i] = Dg_a[i]
-    dist_D_d[i] = dist_D_a[i]
-    G_d[i] = G_a[i]
-    V_d[i] = V_a[i]
-  } else if (tiempo[i] %% rota!=0) {#no se interviene fuera de la rotación
-    N_d[i] = N_a[i]
-    Dg_d[i] = Dg_a[i]
-    dist_D_d[i] = dist_D_a[i]
-    G_d[i] = G_a[i]
-    V_d[i] = V_a[i]
-  } else { #se interviene
+    N_a[1] = sum(df_clase$N_antes)
+    G_a[1] = sum(df_clase$G_antes)
+    Dg_a[1] = sqrt(G_a[1]*(40000/(pi*N_a[1])))
+    dist_D_a[[1]] = df_clase
+    V_a[1] = sum(df_clase$V_antes)
+  # N_a[1] = sum(df_$n_d)
+  # Dg_a[1] = sqrt(sum(df_$n_d*(df_$d_)^2)/sum(df_$n_d))
+  # dist_D_a[1] = df_
+  # G_a[1] = sum(df_$ab)
+  # V_a[1] = sum(df_$vol)
     
+  funcion_actualizar_despues <- function(i)  {
+    #unir la distribución objetivo y la actual
+    distribucion_act <- N_x5 %>%
+      left_join(dist_D_a[[i]]) 
+    
+    #determinar si se interviene y en su caso calcular
+    if (G_a[i] <= ab_objetivo*(1+precis_ab)) { #no se interviene
+      print("primera_condicion")
+      N_d[i] <<- N_a[i]
+      Dg_d[i] <<- Dg_a[i]
+      dist_D_d[[i]] <<- dist_D_a[[i]]
+      G_d[i] <<- G_a[i]
+      V_d[i] <<- V_a[i]
+    } else if (tiempo[i] %% rota !=0  & tiempo[i] > 1) {#no se interviene, fuera de la rotación
+      print("segunda_condicion")
+      N_d[i] <<- N_a[i]
+      Dg_d[i] <<- Dg_a[i]
+      dist_D_d[[i]] <<- dist_D_a[[i]]
+      G_d[i] <<- G_a[i]
+      V_d[i] <<- V_a[i]
+    } else { #se interviene
+      print("tercera_condicion")
+      distrib_d_0 <- distribucion_act %>%
+        arrange(clase_D) %>% #para comparar el número de árboles entre clases consecutivas
+        mutate(ab_exceso = ifelse(N_antes > lead(N_x_y), (N_antes-lead(N_x_y))*pi*(clase_D/200)^2,0)) %>%
+        mutate(ab_exceso = ifelse(clase_D == max(clase_D), G_antes, ab_exceso)) #la última clase siempre se corta (esto quizá no encaja con las criterios ProSilva)
+      
+      distrib_d_1 <- distrib_d_0 %>%
+        filter(ab_exceso > 0) %>%
+        arrange(desc(clase_D)) %>% #para intervenir de arriba a abajo en diámetro
+        mutate(cum_ = cumsum(ab_exceso)) %>%
+        mutate(cum_1 = cum_- G_a[i]*peso_G) %>%
+        mutate(signo_cum_= sign(cum_1)) %>%
+        mutate(diff_ = c(0, diff(signo_cum_))) %>%
+        mutate(mult = (signo_cum_ == -1)*ab_exceso + (diff_ == 2)*c(0, cum_1[1:(n()-1)]) + (c(sign(cum_1[[1]]) >=0, rep(0, n()-1)))*cum_1) %>%
+        mutate(ab_extr_clase = abs(mult)) %>%
+        mutate(n_extraido_clase = ab_extr_clase/G_antes*N_antes) %>%
+        mutate(N_despues = N_antes - n_extraido_clase) %>%
+        mutate(G_despues = G_antes - ab_extr_clase) %>%
+        mutate(V_despues = V_antes/N_antes*N_despues) %>%
+        filter(n_extraido_clase > 0) %>%
+        select(names(distribucion_act), N_despues, G_despues, V_despues)
+      
+      distrib_d <- distribucion_act %>%
+        filter(!(clase_D %in% distrib_d_1$clase_D)) %>%
+        mutate(N_despues = N_antes, G_despues = G_antes, V_despues = V_antes) %>%
+        bind_rows(distrib_d_1) %>%
+        arrange(clase_D)
+      
+      # distribucion_act <- distribucion_act %>%
+      #   select(-N_antes, -G_antes, -V_antes) %>%
+      #   rename(N_antes = N_despues, G_antes = G_despues, G_antes = G_despues)
+      
+      #actualizar los parámetros dasocráticos tras la corta
+      N_d[i] <<- sum(distrib_d$N_despues)
+      G_d[i] <<- sum(distrib_d$G_despues)
+      Dg_d[i] <<- sqrt(G_d[1]*(40000/(pi*N_d[1])))
+      dist_D_d[[i]] <<- distrib_d
+      V_d[i] <<- sum(distrib_d$V_despues)
+      
+    }
     
   }
+  
+ 
+  
 
   #se eliminan preferentemente en el estrato dominante y codominante (se empieza de arriba a abajo)
-  #se considera dominado al tercio de diámetro inferior
-  df_d <- df_ %>%
-    arrange(desc(d_))
-    # mutate(acum_ = cumsum(n_d)) %>%
-    # mutate(dominado = round(acum_/sum(n_d)*100))
+  #se considera dominado al tercio de diámetro inferior (no se usa este criterio de momento)
+    # distrib_d_0 <- distribucion_act %>%
+    # arrange(desc(clase_D)) %>%
+    # mutate(ab_exceso = ifelse(N_antes > N_x_y, G_antes-ab_,0))
+    # 
+    # distrib_d_1 <- distrib_d_0 %>%
+    #   filter(ab_exceso > 0) %>%
+    #   mutate(cum_ = cumsum(ab_exceso)) %>%
+    #   mutate(cum_1 = cum_- G_a[i]*peso_G) %>%
+    #   mutate(signo_cum_= sign(cum_1)) %>%
+    #   mutate(diff_ = c(0, diff(signo_cum_))) %>%
+    #   mutate(mult = (signo_cum_ == -1)*ab_exceso + (diff_ == 2)*c(0, cum_1[1:(n()-1)]) + (c(sign(cum_1[[1]]) >=0, rep(0, n()-1)))*cum_1) %>%
+    #   mutate(ab_extr_clase = abs(mult)) %>%
+    #   mutate(n_extraido_clase = ab_extr_clase/G_antes*N_antes) %>%
+    #   mutate(N_despues = N_antes - n_extraido_clase) %>%
+    #   mutate(G_despues = G_antes - ab_extr_clase) %>%
+    #   mutate(V_despues = V_antes/N_antes*N_despues) %>%
+    #   filter(N_despues > 0) %>%
+    #   select(names(distribucion_act), N_despues, G_despues, V_despues)
+    # 
+    # distrib_d <- distribucion_act %>%
+    #   filter(!(clase_D %in% distrib_d_1$clase_D)) %>%
+    #   mutate(N_despues = N_antes, G_despues = G_antes, V_despues = V_antes) %>%
+    #   bind_rows(distrib_d_1) %>%
+    #   arrange(clase_D)
+    #   
+  
+ 
+    #funcion para incrementar el crecimiento anual
+    funcion_increm_anual <- function(i) {
+      #función para extender las clases diamétricas en diámetros a centímetro
+      #se reparten los diámetros uniformemente
+      funcion_ext_clas_D <- function(i = 2, clas_D = 10) {
+        N_inicial <- dist_D_d[[i-1]]$N_despues[ dist_D_d[[i-1]]$clase_D==clas_D]
+        cd_ext <- data.frame(d_ = seq(clas_D-2, clas_D+2)) %>%
+          mutate(n_d = N_inicial/n(),
+                 clase_D = clas_D)
+      }
     
-    distrib_d_0 <- distribucion_act %>%
-    arrange(desc(clase_D)) %>%
-    mutate(ab_exceso = ifelse(N_antes > N_x_y, G_antes-ab_,0))
-    
-    distrib_d_1 <- distrib_d_0 %>%
-      filter(ab_exceso > 0) %>%
-      # mutate(ab_exc_acum_ = cumsum(ab_exceso)) %>%
-      mutate(cum_ = cumsum(ab_exceso)) %>%
-      mutate(cum_1 = cum_- G_a[i]*peso_G) %>%
-      mutate(signo_cum_= sign(cum_1)) %>%
-      mutate(diff_ = c(0, diff(signo_cum_))) %>%
-      #mutate(lag_diff = lead(diff_)) %>%
-      #mutate(mult = (signo_cum_ == -1)*vol_prop + (diff_ == 2)*lag(cum_1) ) %>%
-      mutate(mult = (signo_cum_ == -1)*ab_exceso + (diff_ == 2)*c(0, cum_1[1:(n()-1)]) + (c(sign(cum_1[[1]]) >=0, rep(0, n()-1)))*cum_1) %>%
-      mutate(ab_extr_clase = abs(mult)) %>%
-      mutate(n_extraido_clase = ab_extr_clase/G_antes*N_antes) %>%
-      mutate(N_despues = N_antes - n_extraido_clase) %>%
-      mutate(G_despues = G_antes - ab_extr_clase) %>%
-      mutate(V_despues = V_antes/N_antes*N_despues) %>%
-      filter(N_despues > 0) %>%
-      select(names(distribucion_act), N_despues, G_despues, V_despues)
+      extender_clas_D_0 <- map_dfr(N_x5$clase_D, ~ funcion_ext_clas_D(i= i, clas_D = .[1]))
+      
+      newdata_ = extender_clas_D_0 %>%
+        rename(Dn_ifn3 = d_) %>%
+        mutate(ab_ = n_d*pi*(Dn_ifn3/200)^2) %>% #cálculo de ab en árboles de más diámetro (ab_may_ifn3)
+        mutate(ab_cumsum = cumsum(ab_)) %>% 
+        mutate(ab_may_ifn3 = ab_cumsum - n_d*pi*(Dn_ifn3/200)^2) %>%
+        mutate(ab_ifn3 = sum(ab_))
+      
+      extender_clas_D_1 <- extender_clas_D_0 %>%
+        mutate(inc_ab_pred = predict(mod.Biandi_nlm, newdata = newdata_)) %>% 
+        mutate(inc_ab_corregido = int_corr_ab + slo_corr_ab*inc_ab_pred) %>%
+        mutate(D_act = sqrt((inc_ab_corregido+pi*(d_/2)^2)*4/pi))
+      
+      df_ <- extender_clas_D_1 %>%
+        select(D_act, n_d) %>%
+        rename(d_ = D_act) %>%
+        mutate(clase_D = cut(d_, breaks = breaks_5cm, labels = seq(5,150,by=5))) %>% #labels identifica el diámetro medio de la clase
+        mutate(clase_D = as.numeric(as.character(clase_D))) %>%
+        mutate(ab = pi*(d_/200)^2*n_d) %>%
+        mutate(vol = predict(lm.vcc, newdata = data.frame(Dn_mm = d_*10))/1000*n_d)
+      
+      df_clase <- df_ %>%
+        group_by(clase_D) %>%
+        summarise(N_antes = sum(n_d),
+                  G_antes = sum(ab),
+                  V_antes = sum(vol)) %>%
+        ungroup() %>%
+        mutate(extra_ = (clase_D >= max(N_x5$clase_D))) %>%
+        mutate(suma_extra_N = sum(N_antes*extra_),
+               suma_extra_G = sum(G_antes*extra_),
+               suma_extra_V = sum(V_antes*extra_)) %>%
+        mutate(N_antes = ifelse(clase_D == max(N_x5$clase_D), suma_extra_N, N_antes),
+               G_antes = ifelse(clase_D == max(N_x5$clase_D), suma_extra_G, G_antes),
+               V_antes = ifelse(clase_D == max(N_x5$clase_D), suma_extra_V, V_antes)) %>%
+        filter(clase_D %in% N_x5$clase_D) %>%
+        mutate(N_despues = N_antes, G_despues = G_antes, V_despues = V_antes) %>% #para evitar errores cuando no hay intervenciones
+        select(-extra_, -suma_extra_N,-suma_extra_G,-suma_extra_V) 
+      
+      #variables dasocráticas actualizadas
+      N_a[i] <<- sum(df_clase$N_antes)
+      G_a[i] <<- sum(df_clase$G_antes)
+      Dg_a[i] <<- sqrt(G_a[i]*(40000/(pi*N_a[i])))
+      dist_D_a[[i]] <<- df_clase
+      V_a[i] <<- sum(df_clase$V_antes)
+      
+    }
 
-    distrib_d <- distribucion_act %>%
-      filter(!(clase_D %in% distrib_d_1$clase_D)) %>%
-      mutate(N_despues = N_antes, G_despues = G_antes, V_despues = V_antes) %>%
-      bind_rows(distrib_d_1) %>%
-      arrange(clase_D)
-      
-    #actualizar los parámetros dasocráticos tras la corta
-    N_d[1] = sum(distrib_d$N_despues)
-    G_d[1] = sum(distrib_d$G_despues)
-    Dg_d[1] = sqrt(G_d[1]*(40000/(pi*N_d[1])))
-    dist_D_a[1] = df_
+################################################################################
+################################################################################    
+    #actualizar para la simulación
+    # 1º actualizar "después en el primer año"
+    funcion_actualizar_despues(1)
     
-    V_d[1] = sum(distrib_d$V_despues)
-          
-  
-  
-              
-      
+    # 2º actualizar el resto de años
+    #for (i in c(2:t_fin)) {
+    for (i in c(2:11)) {
+      print(i)
+      funcion_increm_anual(i)
+      funcion_actualizar_despues(i)
+    }
+
     
-  
-  
+      
   
   
   

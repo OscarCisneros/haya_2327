@@ -1,4 +1,4 @@
-#modelo de incremento medio anual de área basimétrica individual según un modelo nolineal 
+#modelo de incremento medio anual de área basimétrica individual según un modelo no lineal 
 #Según Biachi et al. 2023 (sin efectos aleatorios)
 
 library(minpack.lm)
@@ -12,32 +12,155 @@ corte_diam_2cm <- cut(dat_inc$Dn_ifn3, breaks_2cm)
 
 dat_inc_1 <- dat_inc %>%
   mutate(ab_ind_ifn3 = pi*(Dn_ifn3/2)^2,
-         ab_ind = pi*Dn^2) %>%
-  mutate(inc_ab_ind = ab_ind - ab_ind_ifn3) %>%
+         ab_ind = pi*(Dn/2)^2) %>%
+  mutate(inc_ab_ind = (ab_ind - ab_ind_ifn3)/anno) %>%
   mutate(clase_2cm = corte_diam_2cm) %>%
   mutate(clase_2cm = ifelse(Dn_ifn3 >= 65, "mayor_65", as.character(clase_2cm))) %>%
   group_by(clase_2cm) %>%
-  mutate(dentro = ifelse(Dn_ifn3 <= quantile(Dn_ifn3, 0.9)[[1]] & Dn_ifn3 >= quantile(Dn_ifn3, 0.1)[[1]],
+  mutate(dentro = ifelse(inc_ab_ind <= quantile(inc_ab_ind, 0.9)[[1]] & inc_ab_ind >= quantile(inc_ab_ind, 0.1)[[1]],
                          "dentro", "fuera")) %>%
   ungroup() %>%
   filter(dentro == "dentro")
-  
+
+ggplot(dat_inc_1, aes(x= Dn_ifn3, y=inc_ab_ind))+geom_point()
+################################################################################  
 mod.Biandi_nlm <- nlsLM(inc_ab_ind ~ exp( b1*Dn_ifn3+ b2*log(Dn_ifn3) +
-                            b3*ab_ifn3 + b4*ab_may_ifn3),
-            data = dat_inc_1,
-            start = c (b1 = -0.00550, b2 = 0.87250,
-                       b3 = -0.25327, b4 = -0.20389))
+                                            b3*ab_ifn3 + b4*ab_may_ifn3),
+                        data = dat_inc_1,
+                        start = c (b1 = -0.00550, b2 = 0.87250,
+                                   b3 = -0.25327, b4 = -0.20389))
 summary(mod.Biandi_nlm)
-   
+
 resultado <- dat_inc_1 %>%
   ungroup %>%
-  mutate(predicho = predict(mod.Biandi_nlm)) 
+  mutate(predicho = predict(mod.Biandi_nlm)) %>%
+  mutate(residuos = inc_ab_ind - predicho)
+
+rmse = sqrt(mean(resultado$residuos^2, na.rm = TRUE))
+perc_rmse = rmse/mean(resultado$inc_ab_ind)
 
 ggplot(resultado, aes(x=inc_ab_ind, y = predicho))+
   geom_point()+
   geom_smooth(stat = "smooth")+
   geom_abline()
+plot(mod.Biandi_nlm)
 
+################################################################################  
+mod.Biandi_nlm <- nlsLM(inc_ab_ind ~ exp( b1*Dn_ifn3+ b2*log(Dn_ifn3) +
+                                            b3*ab_ifn3 + b4*ab_may_ifn3),
+                        data = dat_inc_1,
+                        start = c (b1 = -0.00550, b2 = 0.87250,
+                                   b3 = -0.25327, b4 = -0.20389))
+summary(mod.Biandi_nlm)
+
+resultado <- dat_inc_1 %>%
+  ungroup %>%
+  mutate(predicho = predict(mod.Biandi_nlm)) %>%
+  mutate(residuos = inc_ab_ind - predicho)
+
+rmse = sqrt(mean(resultado$residuos^2, na.rm = TRUE))
+perc_rmse = rmse/mean(resultado$inc_ab_ind)
+
+ggplot(resultado, aes(x=inc_ab_ind, y = predicho))+
+  geom_point()+
+  geom_smooth(stat = "smooth")+
+  geom_abline()
+plot(mod.Biandi_nlm)
+
+
+
+################################################################################  
+mod.Biandi_nlm <- nlsLM(inc_ab_ind ~ exp( b1*Dn_ifn3+ b2*log(Dn_ifn3) +
+                                            b3*log(ab_ifn3 + 1) + b4*ab_may_ifn3/sqrt(Dn_ifn3+1)),
+                        data = dat_inc_1,
+                        start = c (b1 = -0.00550, b2 = 0.87250,
+                                   b3 = -0.25327, b4 = -0.20389))
+summary(mod.Biandi_nlm)
+
+resultado <- dat_inc_1 %>%
+  ungroup %>%
+  mutate(predicho = predict(mod.Biandi_nlm)) %>%
+  mutate(residuos = inc_ab_ind - predicho)
+
+rmse = sqrt(mean(resultado$residuos^2, na.rm = TRUE))
+perc_rmse = rmse/mean(resultado$inc_ab_ind)
+
+ggplot(resultado, aes(x=inc_ab_ind, y = predicho))+
+  geom_point()+
+  geom_smooth(stat = "smooth")+
+  geom_abline()
+plot(mod.Biandi_nlm)
+
+################################################################################  
+mod.Biandi_nlm <- nlsLM(inc_ab_ind ~ exp( b1*Dn_ifn3+ b2*log(Dn_ifn3) +
+                                            b3*log(ab_ifn3 + 1) + b4*ab_may_ifn3/sqrt(Dn_ifn3+1)),
+                        data = dat_inc_1,
+                        start = c (b1 = -0.00550, b2 = 0.87250,
+                                   b3 = -0.25327, b4 = -0.20389),
+                        weights = wfct(1/inc_ab_ind))
+summary(mod.Biandi_nlm)
+
+resultado <- dat_inc_1 %>%
+  ungroup %>%
+  mutate(predicho = predict(mod.Biandi_nlm)) %>%
+  mutate(residuos = inc_ab_ind - predicho)
+
+rmse = sqrt(mean(resultado$residuos^2, na.rm = TRUE))
+perc_rmse = rmse/mean(resultado$inc_ab_ind)
+
+ggplot(resultado, aes(x=inc_ab_ind, y = predicho))+
+  geom_point()+
+  geom_smooth(stat = "smooth")+
+  geom_abline()
+plot(mod.Biandi_nlm)
+
+################################################################################  
+mod.Biandi_nlm <- nlsLM(inc_ab_ind ~ exp( b1*Dn_ifn3+ b2*log(Dn_ifn3) +
+                            b3*ab_ifn3 + b4*ab_may_ifn3),
+            data = dat_inc_1,
+            start = c (b1 = -0.00550, b2 = 0.87250,
+                       b3 = -0.25327, b4 = -0.20389),
+            weights = wfct(1/inc_ab_ind))
+summary(mod.Biandi_nlm)
+   
+resultado <- dat_inc_1 %>%
+  ungroup %>%
+  mutate(predicho = predict(mod.Biandi_nlm)) %>%
+  mutate(residuos = inc_ab_ind - predicho)
+
+rmse = sqrt(mean(resultado$residuos^2, na.rm = TRUE))
+perc_rmse = rmse/mean(resultado$inc_ab_ind)
+
+ggplot(resultado, aes(x=inc_ab_ind, y = predicho))+
+  geom_point()+
+  geom_smooth(stat = "smooth")+
+  geom_abline()
+plot(mod.Biandi_nlm)
+
+################################################################################
+mod.Biandi_nlm <- nlsLM(inc_ab_ind ~ exp( b1*Dn_ifn3+ b2*log(Dn_ifn3) + b22*Dn_ifn3^2+
+                                            b3*ab_ifn3 + b4*ab_may_ifn3),
+                        data = dat_inc_1,
+                        start = c (b1 = 0.0761091206, b2 = 0.1867479120, b22 = -0.0004551316,
+                                   b3 = -0.0085088186, b4 = -0.0077477852))
+summary(mod.Biandi_nlm)
+
+resultado <- dat_inc_1 %>%
+  ungroup %>%
+  mutate(predicho = predict(mod.Biandi_nlm)) %>%
+  mutate(residuos = inc_ab_ind - predicho)
+
+rmse = sqrt(mean(resultado$residuos^2, na.rm = TRUE))
+perc_rmse = rmse/mean(resultado$inc_ab_ind)
+
+ggplot(resultado, aes(x=inc_ab_ind, y = predicho))+
+  geom_point()+
+  geom_smooth(stat = "smooth")+
+  geom_abline()
+plot(mod.Biandi_nlm)
+
+#guardar el modelo de incremento de área basimétrica individual
+save(mod.Biandi_nlm, file = "datos/mod_inc_area_basim_indiv")
 ################################################################################
 mod.Biandi_nlm <- nlsLM(inc_ab_ind ~ exp( b1*Dn_ifn3+ b2*log(Dn_ifn3) + b22*Dn_ifn3^2+
                                             b3*ab_ifn3 + b4*ab_may_ifn3),
@@ -45,16 +168,30 @@ mod.Biandi_nlm <- nlsLM(inc_ab_ind ~ exp( b1*Dn_ifn3+ b2*log(Dn_ifn3) + b22*Dn_i
                         start = c (b1 = -0.00550, b2 = 0.87250, b22 = 0.005,
                                    b3 = -0.25327, b4 = -0.20389),
                         weights = wfct(1/inc_ab_ind))
-plot(mod.Biandi_nlm)
 summary(mod.Biandi_nlm)
-#weights = wfct(1/inc_ab_ind))
-
-#guardar el modelo de incremento de área basimétrica individual
-save(mod.Biandi_nlm, file = "datos/mod_inc_area_basim_indiv")
 
 resultado <- dat_inc_1 %>%
   ungroup %>%
-  mutate(predicho = predict(mod.Biandi_nlm)) 
+  mutate(predicho = predict(mod.Biandi_nlm)) %>%
+  mutate(residuos = inc_ab_ind - predicho)
+
+rmse = sqrt(mean(resultado$residuos^2, na.rm = TRUE))
+perc_rmse = rmse/mean(resultado$inc_ab_ind)
+
+ggplot(resultado, aes(x=inc_ab_ind, y = predicho))+
+  geom_point()+
+  geom_smooth(stat = "smooth")+
+  geom_abline()
+plot(mod.Biandi_nlm)
+
+
+resultado <- dat_inc_1 %>%
+  ungroup %>%
+  mutate(predicho = predict(mod.Biandi_nlm)) %>%
+  mutate(residuos = inc_ab_ind - predicho)
+
+rmse = sqrt(mean(resultado$residuos^2, na.rm = TRUE))
+perc_rmse = rmse/mean(resultado$inc_ab_ind)
 
 ggplot(resultado, aes(x=predicho, y = inc_ab_ind))+
   geom_point()+
@@ -68,6 +205,11 @@ ggplot(resultado, aes(x=Dn_ifn3, y = predicho))+
 #Regresión cuantílica para establecer clases de crecimiento. Se emplean como curvas
 #de referencia las relaciones en los cuantiles 10, 30, 50, 70, 90, como representación
 #de las bandas de crecimiento 0-20, 20-40, 40-60, 60-80, 80-100.
+
+resultado <- dat_inc_1 %>%
+  ungroup %>%
+  mutate(predicho = predict(mod.Biandi_nlm)) %>%
+  mutate(residuos = inc_ab_ind - predicho)
 
 rq_50 = rq(formula = inc_ab_ind ~ predicho, tau = 0.5, data = resultado)
 #rqss_50 = rqss(formula = inc_ab_ind ~ predicho, tau = 0.5, data = resultado)
@@ -153,20 +295,31 @@ ggplot(dat_inc_2, aes(x= clase_D, y =log(cuenta) ))+geom_point()+
 
 # 
 # 
-# mod.Biandi_nlm <- nlsLM(inc_ab_ind ~ exp( b1*Dn_ifn3+ b2*log(Dn_ifn3)),
-#                         data = dat_inc_1,
-#                         start = c (b1 = -0.0074226, b2 = 2.3531965))
-# summary(resid(mod.Biandi_nlm))
-# 
-# mod.Biandi_nlm <- nlsLM(inc_ab_ind ~ exp( b1*Dn_ifn3+ b2*log(Dn_ifn3)),
-#                         data = dat_inc_1,
-#                         start = c (b1 = -0.0074226, b2 = 2.3531965),
-#                         weights = wfct(error^2))
+mod.Biandi_nlm <- nlsLM(inc_ab_ind ~ exp( b1*Dn_ifn3+ b2*log(Dn_ifn3)),
+                        data = dat_inc_1,
+                        start = c (b1 = -0.0074226, b2 = 2.3531965))
+summary(resid(mod.Biandi_nlm))
+
+mod.Biandi_nlm <- nlsLM(inc_ab_ind ~ exp( b1*Dn_ifn3+ b2*log(Dn_ifn3)),
+                        data = dat_inc_1,
+                        start = c (b1 = -0.0074226, b2 = 2.3531965),
+                        weights = wfct(error^2))
 # resultado <- data.frame(fitted_ = fitted(mod.Biandi_nlm),
-#                         predicho = predict(mod.Biandi_nlm))
-# 
-# summary(mod.Biandi_nlm)
-# plot(mod.Biandi_nlm)
+#                         predicho = predict(mod.Biandi_nlm)) 
+
+resultado <- data.frame(Dn_ifn3 = dat_inc_1$Dn_ifn3,
+                        inc_ab_ind = dat_inc_1$inc_ab_ind,
+                        predicho = predict(mod.Biandi_nlm, newdata = data.frame(Dn_ifn3 = dat_inc_1$Dn_ifn3))) %>%
+  mutate(residuos = inc_ab_ind - predicho )
+
+rmse = sqrt(mean(resultado$residuos^2, na.rm = TRUE))
+perc_rmse = rmse/mean(resultado$inc_ab_ind)
+summary(mod.Biandi_nlm)
+ggplot(resultado, aes(x=inc_ab_ind, y = predicho))+
+  geom_point()+
+  geom_smooth(stat = "smooth")+
+  geom_abline()
+plot(mod.Biandi_nlm)
 # 
 # 
 # resultado <- dat_inc %>%
