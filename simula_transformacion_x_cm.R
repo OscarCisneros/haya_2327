@@ -1,5 +1,7 @@
 #código para calcular simular la transformación a monte alto irregular
 #a partir de datos iniciales en una edad concreta
+#la actualización del crecimiento en diámetro se hace sobre la distribución centimétrica
+#se asume que la incorporación a la clase inferior es en el número que da la curva teórica
 
 library(openxlsx)
 library(zoo)
@@ -12,7 +14,7 @@ library(tidyverse)
   t_fin = 200
 
   #Índice de sitio, se asimilan las calidades mala, media, buena... a las de montes regulares
-  IS = 25
+  IS = 19
 
   #Datos del monte regular
   N_reg <- 700
@@ -270,38 +272,7 @@ library(tidyverse)
     
   }
   
- 
-  
 
-  #se eliminan preferentemente en el estrato dominante y codominante (se empieza de arriba a abajo)
-  #se considera dominado al tercio de diámetro inferior (no se usa este criterio de momento)
-    # distrib_d_0 <- distribucion_act %>%
-    # arrange(desc(clase_D)) %>%
-    # mutate(ab_exceso = ifelse(N_antes > N_x_y, G_antes-ab_,0))
-    # 
-    # distrib_d_1 <- distrib_d_0 %>%
-    #   filter(ab_exceso > 0) %>%
-    #   mutate(cum_ = cumsum(ab_exceso)) %>%
-    #   mutate(cum_1 = cum_- G_a[i]*peso_G) %>%
-    #   mutate(signo_cum_= sign(cum_1)) %>%
-    #   mutate(diff_ = c(0, diff(signo_cum_))) %>%
-    #   mutate(mult = (signo_cum_ == -1)*ab_exceso + (diff_ == 2)*c(0, cum_1[1:(n()-1)]) + (c(sign(cum_1[[1]]) >=0, rep(0, n()-1)))*cum_1) %>%
-    #   mutate(ab_extr_clase = abs(mult)) %>%
-    #   mutate(n_extraido_clase = ab_extr_clase/G_antes*N_antes) %>%
-    #   mutate(N_despues = N_antes - n_extraido_clase) %>%
-    #   mutate(G_despues = G_antes - ab_extr_clase) %>%
-    #   mutate(V_despues = V_antes/N_antes*N_despues) %>%
-    #   filter(N_despues > 0) %>%
-    #   select(names(distribucion_act), N_despues, G_despues, V_despues)
-    # 
-    # distrib_d <- distribucion_act %>%
-    #   filter(!(clase_D %in% distrib_d_1$clase_D)) %>%
-    #   mutate(N_despues = N_antes, G_despues = G_antes, V_despues = V_antes) %>%
-    #   bind_rows(distrib_d_1) %>%
-    #   arrange(clase_D)
-    #   
-  
- 
     #funcion para incrementar el crecimiento anual
     funcion_increm_anual <- function(i) {
       #recuperar la distribución que se va a actualizar
@@ -327,6 +298,21 @@ library(tidyverse)
         mutate(clase_D = cut(d_, breaks = breaks_5cm, labels = seq(5,150,by=5))) %>% #labels identifica el diámetro medio de la clase
         mutate(clase_D = as.numeric(as.character(clase_D)))
       
+      #se asegura que se incorporan a la clase inferior para alcanzar el número de árboles de la curva teórica en esa clase
+      #se añaden los árboles necesarios al diámetro inferior, 7,5 cm
+      sum_cla_inferior = sum(df_$n_d[df_$clase_D == min(N_x5$clase_D)]) #árboles en la clase inferior
+      teor_cla_inferior =   N_x5$N_x_y[which.min(N_x5$clase_D)] #árboles en la clase inferior según la curva objetivo
+      
+      if (sum_cla_inferior < teor_cla_inferior) {
+        df_clas_min <- data.frame(d_ = min(N_x5$diam_min_),
+                                   n_d = teor_cla_inferior - sum_cla_inferior,
+                                   clase_D = min(N_x5$clase_D)) 
+        df_ <- df_ %>%
+          filter(clase_D >  min(N_x5$diam_min_)) %>%
+          bind_rows(df_clas_min)
+      }
+        
+        
       df_clase <- df_ %>%
         mutate(ab = pi*(d_/200)^2*n_d) %>%
         mutate(vol = predict(lm.vcc, newdata = data.frame(Dn_mm = d_*10))/1000*n_d) %>%
