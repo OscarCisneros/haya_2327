@@ -47,7 +47,9 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
     edad_fin <- max(escenario.tratamiento_0$edad)
     
     #Denominación de las claras tratadas con la función de claras mixtas
-    tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria 1", "aclaratoria","clara selectiva","corta preparatoria","corta diseminatoria")
+    tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria",
+                      "aclaratoria 1", "aclaratoria","clara selectiva",
+                      "corta preparatoria","corta diseminatoria","entresaca")
     
     #modelo de incremento individual
     load("datos/mod_inc_diam_individual")
