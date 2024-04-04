@@ -11,8 +11,6 @@ library(tidyverse)
 #Grupo
 grupo <- "transformacion"
 
-N_ini = 0
-#grupo = 0
 escenario.nombre = 0
 
 #Denominación de las claras tratadas con la función de claras mixtas
@@ -24,24 +22,24 @@ tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria
   t_fin = 200
 
   #Índice de sitio, se asimilan las calidades mala, media, buena... a las de montes regulares
-  IS = 19
+  IS = 25 #19
 
   #Datos del monte regular
-  N_reg <- 700
-  Edad_reg <- 50
-  G_reg <- 26
+  N_reg <- 250 #700
+  Edad_reg <- 60 #50
+  G_reg <- 30 #26
   
   #área basimétrica objetivo
-  ab_objetivo = 20
+  ab_objetivo = 15 #20
   precis_ab = 0.05 #margen para el ab_objetivo
   #rango de diámetros
-  diam_max = 65.5
+  diam_max = 60.5 #65.5
   diam_min = 7.5
   
   #peso de la intervención, tanto por uno en área basimétrica
-  peso_G = 0.25
+  peso_G = 0.2 #0.25
   #años entre intervenciones, rotación
-  rota = 10
+  rota = 7 #10
 
   #parámetro q, curva de Liocourt
   load("datos/a_liocourt_irreg")
@@ -181,9 +179,9 @@ tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria
     #param_= func_expande_Weibull(i_, Dg_a_, N_a_) #tiene en cuanta la variación de "a", diámetro mínimo
     
     df_ <- data.frame(d_ = seq(round(param_weibull_irreg[1]/0.5)*0.5,150)) %>% #150 como diámetro superior, pero deberíamos parametrizarlo
-      mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_weibull_irreg[1],param_weibull_irreg[2],param_weibull_irreg[3]))* N_a_) %>%
+      mutate(n_d = sapply(d_, function(x) func_dens_weibull(x,param_weibull_irreg[1],param_weibull_irreg[2],param_weibull_irreg[3]))* N_reg) %>%
       filter(!is.na(n_d)) %>%
-      mutate(n_d = n_d/sum(n_d)*N_a_) %>% #para eliminar errores al aproximar la curva de densidad de Weibull
+      mutate(n_d = n_d/sum(n_d)*N_reg) %>% #para eliminar errores al aproximar la curva de densidad de Weibull
       mutate(clase_D = cut(d_, breaks = breaks_5cm, labels = seq(5,150,by=5))) %>% #labels identifica el diámetro medio de la clase
       mutate(clase_D = as.numeric(as.character(clase_D))) %>%
       mutate(ab = pi*(d_/200)^2*n_d) %>%
@@ -231,28 +229,30 @@ tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria
     
     df_clase <- df_ %>%
       group_by(clase_D) %>%
-      summarise(N_antes = sum(n_d),
-                G_antes = sum(ab),
-                V_antes = sum(vol)) %>%
+      summarise(N_antes = sum(n_d, na.rm = TRUE),
+                G_antes = sum(ab, na.rm = TRUE),
+                V_antes = sum(vol, na.rm = TRUE)) %>%
       ungroup() %>%
       mutate(extra_ = (clase_D >= max(N_x5$clase_D))) %>%
-      mutate(suma_extra_N = sum(N_antes*extra_),
-             suma_extra_G = sum(G_antes*extra_),
-             suma_extra_V = sum(V_antes*extra_)) %>%
+      mutate(suma_extra_N = sum(N_antes*extra_, na.rm = TRUE),
+             suma_extra_G = sum(G_antes*extra_, na.rm = TRUE),
+             suma_extra_V = sum(V_antes*extra_, na.rm = TRUE)) %>%
       mutate(N_antes = ifelse(clase_D == max(N_x5$clase_D), suma_extra_N, N_antes),
              G_antes = ifelse(clase_D == max(N_x5$clase_D), suma_extra_G, G_antes),
              V_antes = ifelse(clase_D == max(N_x5$clase_D), suma_extra_V, V_antes)) %>%
       filter(clase_D %in% N_x5$clase_D) %>%
-      select(-extra_, -suma_extra_N,-suma_extra_G,-suma_extra_V) 
+      select(-extra_, -suma_extra_N,-suma_extra_G,-suma_extra_V)
+    
+      
   
   #variables dasocráticas iniciales
-    N_a[1] = sum(df_clase$N_antes)
-    G_a[1] = sum(df_clase$G_antes)
+    N_a[1] = sum(df_clase$N_antes, na.rm = TRUE)
+    G_a[1] = sum(df_clase$G_antes, na.rm = TRUE)
     Dg_a[1] = sqrt(G_a[1]*(40000/(pi*N_a[1])))
     dist_D_a[[1]] = df_clase
     dist_d_cm_a[[1]] = df_v_carp
     #dist_d_cm_a[[1]] = df_
-    V_a[1] = sum(df_clase$V_antes)
+    V_a[1] = sum(df_clase$V_antes, na.rm = TRUE)
   # N_a[1] = sum(df_$n_d)
   # Dg_a[1] = sqrt(sum(df_$n_d*(df_$d_)^2)/sum(df_$n_d))
   # dist_D_a[1] = df_
@@ -366,7 +366,7 @@ tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria
         #select(d_, n_d, clase_D) %>%
         left_join(distrib_d %>% select(clase_D, N_antes, N_despues)) %>%
         group_by(clase_D) %>%
-        mutate(n_d_despues = n_d/sum(n_d)*N_despues) %>%
+        mutate(n_d_despues = n_d/sum(n_d, na.rm = TRUE)*N_despues) %>%
         ungroup() %>%
         mutate(n_d_extraido = ifelse(n_d <= n_d_despues, 0, n_d - n_d_despues)) %>%
         mutate(v_carp = v_carp*n_d_extraido) %>%
@@ -382,18 +382,18 @@ tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria
         select(d_, n_d, clase_D) %>%
         left_join(distrib_d %>% select(clase_D, N_despues)) %>%
         group_by(clase_D) %>%
-        mutate(n_d = n_d/sum(n_d)*N_despues) %>%
+        mutate(n_d = n_d/sum(n_d, na.rm = TRUE)*N_despues) %>%
         ungroup() %>%
         select(d_, n_d, clase_D)
       
       #actualizar los parámetros dasocráticos tras la corta
       tratamiento[i] <<- "entresaca"
-      N_d[i] <<- sum(distrib_d$N_despues)
-      G_d[i] <<- sum(distrib_d$G_despues)
+      N_d[i] <<- sum(distrib_d$N_despues, na.rm = TRUE)
+      G_d[i] <<- sum(distrib_d$G_despues, na.rm = TRUE)
       Dg_d[i] <<- sqrt(G_d[1]*(40000/(pi*N_d[1])))
       dist_D_d[[i]] <<- distrib_d
       dist_d_cm_d[[i]] <<- df_despues
-      V_d[i] <<- sum(distrib_d$V_despues)
+      V_d[i] <<- sum(distrib_d$V_despues, na.rm = TRUE)
       
       # Volumen de carpintería
       V_carp[i] <<- sum(df_vcarp_biom$v_carp_ext, na.rm = TRUE)
@@ -407,8 +407,7 @@ tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria
     
   }
   
-
-    #funcion para incrementar el crecimiento anual
+  #funcion para incrementar el crecimiento anual
     funcion_increm_anual <- function(i) {
       #recuperar la distribución que se va a actualizar
       actualiza_0 <- dist_d_cm_d[[i-1]] %>%
@@ -439,11 +438,11 @@ tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria
       teor_cla_inferior =   N_x5$N_x_y[which.min(N_x5$clase_D)] #árboles en la clase inferior según la curva objetivo
       
       if (sum_cla_inferior < teor_cla_inferior) {
-        df_clas_min <- data.frame(d_ = min(N_x5$diam_min_),
+        df_clas_min <- data.frame(d_ = min(N_x5$diam_min_, na.rm = TRUE),
                                    n_d = teor_cla_inferior - sum_cla_inferior,
-                                   clase_D = min(N_x5$clase_D)) 
+                                   clase_D = min(N_x5$clase_D, na.rm = TRUE)) 
         df_ <- df_ %>%
-          filter(clase_D >  min(N_x5$diam_min_)) %>%
+          filter(clase_D >  min(N_x5$diam_min_, na.rm = TRUE)) %>%
           bind_rows(df_clas_min)
       }
        
@@ -476,8 +475,7 @@ tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria
                 v_carp_2 = exp(-10.1197792+2.0351346*rddg+0.1360856*Dg+0.0012059*N),
                 v_carp_3 = exp(-5.2618050+0.0679419*d_+0.0004858*N),
                 v_carp_4 = exp(-6.783112002+0.082219560*d_+0.003219738*N-0.000002936*N^2+0.026264302*G)) %>%
-        mutate(v_carp = v_carp_1+v_carp_2+v_carp_3+v_carp_4)
-
+        mutate(v_carp = v_carp_1+v_carp_2+v_carp_3+v_carp_4) %>%
         #fracciones de biomasa
         mutate(B_hoja = 0.0167*d_^2.951*Ht^-1.101, #Batelink 1997
                B_fuste = exp(0.23272^2/2)*exp(-1.63732)*d_^2.21464,
@@ -496,12 +494,12 @@ tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria
                   V_antes = sum(vol)) %>%
         ungroup() %>%
         mutate(extra_ = (clase_D >= max(N_x5$clase_D))) %>%
-        mutate(suma_extra_N = sum(N_antes*extra_),
-               suma_extra_G = sum(G_antes*extra_),
-               suma_extra_V = sum(V_antes*extra_)) %>%
-        mutate(N_antes = ifelse(clase_D == max(N_x5$clase_D), suma_extra_N, N_antes),
-               G_antes = ifelse(clase_D == max(N_x5$clase_D), suma_extra_G, G_antes),
-               V_antes = ifelse(clase_D == max(N_x5$clase_D), suma_extra_V, V_antes)) %>%
+        mutate(suma_extra_N = sum(N_antes*extra_, na.rm = TRUE),
+               suma_extra_G = sum(G_antes*extra_, na.rm = TRUE),
+               suma_extra_V = sum(V_antes*extra_, na.rm = TRUE)) %>%
+        mutate(N_antes = ifelse(clase_D == max(N_x5$clase_D, na.rm = TRUE), suma_extra_N, N_antes),
+               G_antes = ifelse(clase_D == max(N_x5$clase_D, na.rm = TRUE), suma_extra_G, G_antes),
+               V_antes = ifelse(clase_D == max(N_x5$clase_D, na.rm = TRUE), suma_extra_V, V_antes)) %>%
         filter(clase_D %in% N_x5$clase_D) %>%
         mutate(N_despues = N_antes, G_despues = G_antes, V_despues = V_antes) %>% #para evitar errores cuando no hay intervenciones
         select(-extra_, -suma_extra_N,-suma_extra_G,-suma_extra_V) 
@@ -517,13 +515,13 @@ tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria
       }
       
       #variables dasocráticas actualizadas
-      N_a[i] <<- sum(df_clase$N_antes)
-      G_a[i] <<- sum(df_clase$G_antes)
+      N_a[i] <<- sum(df_clase$N_antes, na.rm = TRUE)
+      G_a[i] <<- sum(df_clase$G_antes, na.rm = TRUE)
       Dg_a[i] <<- sqrt(G_a[i]*(40000/(pi*N_a[i])))
       dist_D_a[[i]] <<- df_clase
       #dist_d_cm_a[[i]] <<- df_
       dist_d_cm_a[[i]] <<- df_v_carp
-      V_a[i] <<- sum(df_clase$V_antes)
+      V_a[i] <<- sum(df_clase$V_antes, na.rm = TRUE)
       
     }
 
@@ -599,9 +597,7 @@ tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria
     graf_mort_ordenaciones_claras <- para_excel_res %>%
       bind_rows(dat_ordenaciones_adultas %>% mutate(origen = "ordenaciones") %>% rename(Tiempo = Edad)) %>%
       bind_rows(res_daso_claras_0  %>% mutate(origen = "claras")%>% rename(Tiempo = Edad)) 
-     
     
- 
     ggplot(graf_mort_ordenaciones_claras %>% filter(is.na(origen)), aes(x=Tiempo, y=V_a_, col= as.factor(IS_)))+
       geom_line(size = 1)+
       geom_point(data=graf_mort_ordenaciones_claras %>% filter(origen == "ordenaciones"),
@@ -610,7 +606,7 @@ tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria
       geom_point(data=graf_mort_ordenaciones_claras %>% filter(origen == "claras"),
                  aes(x= Tiempo, y = V_a_, shape = trat), size = 3,  col = "red")+
       ggtitle(paste0("Datos de ordenaciones. ",grupo,"/",escenario.nombre,"_IS_",IS),
-              subtitle = paste0("Tipo: Adultas susceptibles de claras. Evolución desde ", N_ini, " arb/ha"))+
+              subtitle = paste0("Tipo: Adultas susceptibles de claras"))+
       theme_light()+
       labs(x = "Edad", y = "Vcc m3/ha")+
       labs(color = "Evolución según IS")+
@@ -618,7 +614,7 @@ tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria
       theme(text = element_text(size = 30))
     
     
-    ggsave(paste0("resultados/simulaciones/",grupo,"/",escenario.nombre,"_IS_",IS,"_N_ini_",N_ini,".png"), width = 677.4 , height = 364.416, units = "mm")
+    ggsave(paste0("resultados/simulaciones/",grupo,"/",escenario.nombre,"_IS_",IS,".png"), width = 677.4 , height = 364.416, units = "mm")
     
 
     para_excel_solo_trat <- para_excel_res %>%
@@ -638,12 +634,5 @@ tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria
              Thinning_Harvest,Fraction_removed,Stems_log_wood, Stems_pulp_pap) 
     write.xlsx(para_CO2fix, paste0("resultados/simulaciones/",grupo,"/",escenario.nombre,"_IS_",IS,"_CO2Fix.xlsx"))
     
-    #Resumen del escenario
-    retorno <- data.frame(grupo = grupo, escenario = escenario.nombre,
-                          N_ini = N_ini, IS = IS, Rotacion = edad_fin,
-                          Suma_Crec_corriente = round(sum(res$Crec_corr,na.rm = TRUE),0),
-                          Suma_Vol_extraido = round(sum(para_excel_solo_trat$V_e_, na.rm = TRUE),0),
-                          Suma_Vol_carpinteria = round(sum(para_excel_solo_trat$V_carp),0))     
-  
-  
+
   
