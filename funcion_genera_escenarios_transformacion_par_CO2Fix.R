@@ -125,7 +125,7 @@ print(paste0("escenario nº: ",escenario))
   IS = gg[escenario, "IS"]
   
   #Datos del monte regular
-  escenario.nombre <-paste0(gg[escenario, "inicio_reg"][[1]][1],"_", escenario)
+  #escenario.nombre <-paste0(gg[escenario, "inicio_reg"][[1]][1],"_", escenario)
   N_reg <- as.numeric(gg[escenario, "inicio_reg"][[1]][2])
   G_reg <- as.numeric(gg[escenario, "inicio_reg"][[1]][3])
   Edad_reg <- as.numeric(gg[escenario, "inicio_reg"][[1]][4])
@@ -140,6 +140,24 @@ print(paste0("escenario nº: ",escenario))
   #rango de diámetros
   diam_max <<- gg[escenario, "diam_max"]
   diam_min = 7.5
+  
+  
+  
+  #carpeta de escenarios
+  escenario.nombre = paste0("E_",Edad_reg,"_N_",N_reg,"_IS_",IS, "_DMX_",as.character(diam_max*10))
+  ruta_dir_escenario = paste0("resultados/simulaciones/",grupo,"/",escenario.nombre)
+  if(!file.exists(ruta_dir_escenario)) {
+    dir.create(ruta_dir_escenario)
+  }
+  
+  #resumen de las variables empleadas en el escenario
+  resumen_variables <- data.frame(escenario.nombre = escenario.nombre,
+                                  N_reg = N_reg, G_reg = G_reg, Edad_reg = Edad_reg,
+                                  ab_objetivo = ab_objetivo, precis_ab = precis_ab,
+                                  peso_G = peso_G, rotacion = rota, 
+                                  diam_max = diam_max, diam_min = diam_min)
+  write.xlsx(resumen_variables, paste0(ruta_dir_escenario,"/resumen_variables.xlsx"))
+  
   
   #corrección del crecimiento diametral
   correc_calidad_irreg$calidad <- c(13,16,19,22,25)
@@ -292,7 +310,7 @@ print(paste0("escenario nº: ",escenario))
       
       para_excel_res <- res[nombres_exc] %>%
         mutate(across(is.numeric, round, digits=3))
-      write.xlsx(para_excel_res, paste0("resultados/simulaciones/",grupo,"/",escenario.nombre,"_IS_",IS,".xlsx"))
+      write.xlsx(para_excel_res, paste0(ruta_dir_escenario,"/",escenario.nombre,".xlsx"))
       
       #gráfica de comparación con las ordenaciones
       #gráficos con ordenaciones y claras
@@ -309,7 +327,7 @@ print(paste0("escenario nº: ",escenario))
         new_scale("shape") +
         geom_point(data=graf_mort_ordenaciones_claras %>% filter(origen == "claras"),
                    aes(x= Tiempo, y = V_a_, shape = trat), size = 3,  col = "red")+
-        ggtitle(paste0("Datos de ordenaciones. ",grupo,"/",escenario.nombre,"_IS_",IS),
+        ggtitle(paste0("Datos de ordenaciones. ",grupo,"/",escenario.nombre),
                 subtitle = paste0("Tipo: Adultas susceptibles de claras"))+
         theme_light()+
         labs(x = "Edad", y = "Vcc m3/ha")+
@@ -318,11 +336,13 @@ print(paste0("escenario nº: ",escenario))
         theme(text = element_text(size = 30))
       
       
-      ggsave(paste0("resultados/simulaciones/",grupo,"/",escenario.nombre,"_IS_",IS,".png"), width = 677.4 , height = 364.416, units = "mm")
+      ggsave(paste0(ruta_dir_escenario,"/",escenario.nombre,".png"), width = 677.4 , height = 364.416, units = "mm")
       
       
       para_excel_solo_trat <- para_excel_res %>%
         filter(Tiempo %in% seq(5,500, by=5) | tratamiento %in% c("final","clareo",tipos_claras)) %>%
+        mutate(Mortalidad_natural = ifelse(tratamiento %in% c("mortalidad natural"),1,0)) %>%
+        mutate(Mortality = Mortalidad_natural*round(V_e_/V_a_,2)) %>%
         mutate(Stems = ifelse(Tiempo %in% seq(5,500, by=5), 1, 0)) %>%
         mutate(CAI = Stems*Crec_corr_) %>%
         mutate(Thinning_Harvest = ifelse(tratamiento %in% c("final","clareo",tipos_claras),1,0)) %>%
@@ -330,13 +350,83 @@ print(paste0("escenario nº: ",escenario))
         mutate(Stems_log_wood = ifelse(V_carp_ == 0, 0,round(V_carp_/V_e_,3))) %>%
         mutate(Stems_pulp_pap = 1-Stems_log_wood) 
       
-      write.xlsx(para_excel_solo_trat, paste0("resultados/simulaciones/",grupo,"/",escenario.nombre,"_IS_",IS,"_resumido.xlsx"))
+      write.xlsx(para_excel_solo_trat, paste0(ruta_dir_escenario,"/",escenario.nombre,"_resumido.xlsx"))
       
       #resumen para CO2Fix
-      para_CO2fix <- para_excel_solo_trat %>%
-        select(Tiempo,N_a_,Dg_a_,tratamiento,Stems,CAI, Rel_growth_foliage_, Rel_growth_branches_, Rel_growth_roots_,
+      para_CO2Fix <- para_excel_solo_trat %>%
+        rename(Rel_growth_foliage = Rel_growth_foliage_, Rel_growth_branches = Rel_growth_branches_, Rel_growth_roots = Rel_growth_roots_) %>%
+        select(Tiempo,N_a_,Dg_a_,tratamiento,Stems,CAI, Rel_growth_foliage, Rel_growth_branches, Rel_growth_roots,
+               Mortalidad_natural, Mortality,
                Thinning_Harvest,Fraction_removed,Stems_log_wood, Stems_pulp_pap) 
-      write.xlsx(para_CO2fix, paste0("resultados/simulaciones/",grupo,"/",escenario.nombre,"_IS_",IS,"_CO2Fix.xlsx"))
+      write.xlsx(para_CO2Fix, paste0(ruta_dir_escenario,"/",escenario.nombre,"_CO2Fix.xlsx"))
+      
+      #piezas del archivo de CO2Fix
+      #-------------------------------------------------------------------------------
+      load("datos/escrib_CO2fix/encabezamientos/encabezados_CO2Fix")
+      id_arch_ <- c("# stems", "# foliage", "# branches", "# roots", "# mortality table", "# thinning and harvest table" )
+      id_co2fix <- c("CAI", "Rel_growth_foliage","Rel_growth_branches","Rel_growth_roots", "Mortality", "Thinning_harvest") 
+      id_variab_CO2Fix <- data.frame(id_arch_ = id_arch_, id_co2fix = id_co2fix)
+      funcion_archivos_CO2_fix <- function(id_arch = 6, para_CO2Fix_ = "para_CO2Fix") {
+        etiqueta_ = id_variab_CO2Fix$id_arch_[id_arch]
+        columna_ = id_variab_CO2Fix$id_co2fix[id_arch]
+        res_CO2Fix = get(para_CO2Fix_)
+        
+        if(etiqueta_ == "# thinning and harvest table") {
+          arch_etiqueta <- res_CO2Fix %>%
+            filter(Thinning_Harvest==1) %>%
+            mutate(columna_texto = paste0("\t\t\t\t\t",Tiempo,"\t",
+                                          Fraction_removed,"\t",Stems_log_wood,"\t",Stems_pulp_pap,"\t0\t0\t0.0\t0.0\t0\t0")) %>%
+            select(columna_texto) %>%
+            mutate(etiqueta = etiqueta_)
+          
+          assign(paste0("archiv_",etiqueta_), encabezados_CO2Fix)
+          
+          arch_CO2 <- encabezados_CO2Fix %>%
+            filter(etiqueta == etiqueta_) %>%
+            bind_rows(arch_etiqueta)
+          
+          #assign(paste0("archiv_",etiqueta_), arch_CO2, envir = .GlobalEnv)
+          write.csv(arch_CO2, paste0(ruta_dir_escenario,"/","archiv_",etiqueta_,".csv"))
+        }
+        
+        else if(etiqueta_ == "# mortality table") {
+          arch_etiqueta <- res_CO2Fix %>%
+            filter(Mortalidad_natural==1) %>%
+            mutate(columna_texto = paste0("\t\t\t\t\t",Tiempo,"\t",Mortality)) %>%
+            select(columna_texto) %>%
+            mutate(etiqueta = etiqueta_)
+          
+          assign(paste0("archiv_",etiqueta_), encabezados_CO2Fix)
+          
+          arch_CO2 <- encabezados_CO2Fix %>%
+            filter(etiqueta == etiqueta_) %>%
+            bind_rows(arch_etiqueta)
+          
+          #assign(paste0("archiv_",etiqueta_), arch_CO2, envir = .GlobalEnv)
+          write.csv(arch_CO2, paste0(ruta_dir_escenario,"/","archiv_",etiqueta_,".csv"))
+        }
+        
+        else {
+          arch_etiqueta <- res_CO2Fix %>%
+            filter(Stems==1) %>%
+            mutate(columna_texto = paste0("\t\t\t\t\t",Tiempo,"\t",get(columna_))) %>%
+            select(columna_texto) %>%
+            mutate(etiqueta = etiqueta_)
+          
+          assign(paste0("archiv_",etiqueta_), encabezados_CO2Fix)
+          
+          arch_CO2 <- encabezados_CO2Fix %>%
+            filter(etiqueta == etiqueta_) %>%
+            bind_rows(arch_etiqueta)
+          
+          #assign(paste0("archiv_",etiqueta_), arch_CO2, envir = .GlobalEnv)
+          write.csv(arch_CO2, paste0(ruta_dir_escenario,"/","archiv_",etiqueta_,".csv"))
+        }
+        
+      }
+      
+      map(seq(1,nrow(id_variab_CO2Fix)), ~ funcion_archivos_CO2_fix(id_arch = .[1],
+                                                                    para_CO2Fix_ = "para_CO2Fix"))
       
       #Resumen del escenario
       retorno <- data.frame(grupo = grupo, escenario = escenario.nombre,
