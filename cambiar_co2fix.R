@@ -1,50 +1,10 @@
 library(tidyverse)
 qq <- readLines("datos/escrib_CO2fix/escenario_Q1.txt")
 ejemp_sel_ref <- readLines("datos/escrib_CO2fix/ejemp_selv_ref.txt")
+ejemp_CO2Fix <-readLines("datos/escrib_CO2fix/Q1_ARTIKUTZA.co2") 
 foliage <- readLines("datos/escrib_CO2fix/foliage.txt")
 foliage_2 <- readLines("datos/escrib_CO2fix/foliage_2.txt")
 qq_export <- gsub(pattern = foliage, replace = foliage_2, x = qq)
-# growth table
-{
-  #biom/biom_max	CAI
-  20	3.5
-  
-  30	7.5
-  40	10.3
-  50	12.1
-  60	12.6
-  70	11.6
-  80	10.6
-  90	10
-  100	9.7
-  110	8.8
-  120	8.4
-  130	8
-  140	7.5
-  150	7.1
-  160	6.6
-  170	6.6
-  180	6.1
-  190	5.6
-  200	5.6
-  210	5.6
-  220	5.6
-  230	5.6
-  240	5.6
-  250	5.6
-  260	5.6
-  270	5.6
-  280	5.6
-  290	5.6
-  300	5.6
-  310	5.6
-  320	5.6
-  330	5.6
-  340	5.6
-  350	5.6
-  360	5.6
-  0	5.6
-}
 
 str_replace(string = uuu, pattern = uu, replacement = uu_2)
 
@@ -67,6 +27,31 @@ etiquetas <- c("\t\t\t\t# stems", "\t\t\t\t# foliage", "\t\t\t\t# branches", "\t
   mutate(etiqueta = ifelse(is.na(etiqueta), 0, etiqueta)) %>%
   mutate(orden_trozos = cumsum(etiqueta != lag(etiqueta, default = first(etiqueta)))) #indica el orden de cada trozo del dataframe
 
+  #dataframe con un ejemplo de escenario, para usarlo de plantilla
+  plantilla_escenario_CO2Fix <- data.frame(columna_texto = ejemp_sel_ref) %>%
+    mutate(TF_etiqueta = columna_texto %in% etiquetas) %>%
+    mutate(marcar_llave = columna_texto == "\t\t\t\t}") %>% #marcar las líneas con llave de cierre después de cada etiqueta
+    mutate(etiqueta = ifelse(TF_etiqueta | marcar_llave, columna_texto, NA)) %>%
+    fill(etiqueta) %>%
+    mutate(etiqueta = ifelse(is.na(etiqueta), 0, etiqueta)) %>%
+    mutate(orden_trozos = cumsum(etiqueta != lag(etiqueta, default = first(etiqueta)))) #indica el orden de cada trozo del dataframe
+  write.csv(plantilla_escenario_CO2Fix, "datos/escrib_CO2Fix/encabezamientos/plantilla_escenario_CO2Fix.csv")
+  save(plantilla_escenario_CO2Fix, file = "datos/escrib_CO2Fix/encabezamientos/plantilla_escenario_CO2Fix" )
+  
+  #dataframe con un archivo CO2Fix completo
+  #rr <- data.frame(columna_texto = qq) %>%
+  df_ejemp_CO2Fix <- data.frame(columna_texto = ejemp_CO2Fix) %>%
+    mutate(TF_etiqueta = columna_texto %in% etiquetas) %>%
+    mutate(marcar_llave = columna_texto == "\t\t\t\t}") %>% #marcar las líneas con llave de cierre después de cada etiqueta
+    mutate(etiqueta = ifelse(TF_etiqueta | marcar_llave, columna_texto, NA)) %>%
+    fill(etiqueta) %>%
+    mutate(etiqueta = ifelse(is.na(etiqueta), 0, etiqueta)) %>%
+    mutate(orden_trozos = cumsum(etiqueta != lag(etiqueta, default = first(etiqueta)))) %>% #indica el orden de cada trozo del dataframe
+    select(columna_texto)
+  
+  encabezamiento_general_CO2Fix <- df_ejemp_CO2Fix[1:63,]
+  write.csv(encabezamiento_general_CO2Fix, "datos/escrib_CO2Fix/encabezamientos/encabezamiento_general_CO2Fix.csv")
+  save(encabezamiento_general_CO2Fix, file = "datos/escrib_CO2Fix/encabezamientos/encabezamiento_general_CO2Fix" )
 #-------------------------------------------------------------------------------
 id_arch_ <- c("# stems", "# foliage", "# branches", "# roots", "# mortality table", "# thinning and harvest table" )
 id_co2fix <- c("CAI", "Rel_growth_foliage","Rel_growth_branches","Rel_growth_roots", "Mortality", "Thinning_harvest") 

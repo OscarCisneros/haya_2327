@@ -1,5 +1,6 @@
-#función para simular resultados del proceso de transformación
+#función para simular resultados del proceso de transformación a partir de datos de inicio de un monte regular generado con la función "funcion_genera_escenarios_transformacion_REGUAR_par_CO2Fix.R"
 #a partir del código simula_transformacion_x_cm.R
+
 
 library(openxlsx)
 library(zoo)
@@ -18,7 +19,7 @@ library(tidyverse)
   # rotación, tiempo entre intervenciones. Máximo de 10 años (pe 5, 7, 10)
 
 #cargar las funciones accesorias
-source("scripts/funciones_accesorias_transformacion.R")
+# source("scripts/funciones_accesorias_transformacion.R")
 
 #Denominación de las claras tratadas con la función de claras mixtas
 tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria 1", "aclaratoria","clara selectiva","corta preparatoria","corta diseminatoria", "entresaca")
@@ -31,7 +32,51 @@ tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria
 #datos de ordenaciones para el gráfico
   dat_ordenaciones_adultas <- read.csv("resultados/dat_ordenaciones_adultas.csv")
 
-#Duración de la simulación
+
+# #Denominación del grupo
+# grupo = "prueba" #"transformacion"
+# 
+# #datos de inicio del monte regular, según la ordenación de Aralar
+# #inicio_monte_regular_aralar <- read.csv2("datos/escenarios/aralar/inicio_monte_regular_aralar.csv")
+# #inicio_monte_regular_aralar <- read.csv2("datos/escenarios/aralar/corto_inicio_monte_regular_aralar.csv") # sólo 6 escenarios
+# # inicio_monte_regular_aralar <- read.csv2("datos/escenarios/prueba/prueb_transf.csv") # sólo 1 escenario
+# # inicio_monte_regular_aralar_0 <- inicio_monte_regular_aralar %>%
+# #   mutate(Edad_3 = round((Edad_1+Edad_2)/20)*10) %>%
+# #   pivot_longer(cols = starts_with("Edad"), names_to = "clase_Edad", values_to = "Edad_reg") %>%
+# #   filter(Edad_reg > 0) %>% #no tiene sentido contar con G y N >0 para Edad =0
+# #   rowwise() %>%
+# #   mutate(inicio_reg = list(c(escenario_Aralar,N,G, Edad_reg))) %>%
+# #   ungroup()
+# 
+# #Índice de sitio, se asimilan las calidades mala, media, buena... a las de montes regulares
+# IS_ = c(25) #c(13,16,19,22,25)
+# 
+# #área basimétrica objetivo
+# ab_objetivo_ = c(30) # c(15,20,25)
+# precis_ab = 0.05 #margen para el ab_objetivo
+# 
+# #rango de diámetros
+# diam_max_ = seq(65.5,100.5, by =10) #seq(60.5,100.5, by =5)
+# diam_min = 7.5
+# 
+# #peso de la intervención, tanto por uno en área basimétrica
+# peso_G_ = c(0.20, 0.25) #c(0.20, 0.225, 0.25)
+# #años entre intervenciones, rotación
+# rota_ = c(10) #c(5,7,10)
+# 
+# 
+# gg <- expand.grid(inicio_reg = inicio_monte_regular_aralar_0$inicio_reg,
+#                   IS = IS_,
+#                   ab_objetivo = ab_objetivo_,
+#                   peso_G = peso_G_,
+#                   diam_max = diam_max_,
+#                   rotacion = rota_)
+
+funcion_genera_escenarios_transformacion_desde_REG <- function( escenario = 1, grupo = grupo_transformacion, gg = gg_) {
+ 
+print(paste0("escenario nº: ",escenario))
+  
+  #Duración de la simulación
   t_fin = 300
   
   #secuencia de la simulación
@@ -77,49 +122,6 @@ tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria
   Rel_growth_foliage <- rep(0, length(tiempo))
   Rel_growth_branches <- rep(0, length(tiempo))
   Rel_growth_roots <- rep(0, length(tiempo))
- 
-#Denominación del grupo
-grupo = "prueba" #"transformacion"
-
-#datos de inicio del monte regular, según la ordenación de Aralar
-#inicio_monte_regular_aralar <- read.csv2("datos/escenarios/aralar/inicio_monte_regular_aralar.csv")
-#inicio_monte_regular_aralar <- read.csv2("datos/escenarios/aralar/corto_inicio_monte_regular_aralar.csv") # sólo 6 escenarios
-inicio_monte_regular_aralar <- read.csv2("datos/escenarios/prueba/prueb_transf.csv") # sólo 1 escenario
-inicio_monte_regular_aralar_0 <- inicio_monte_regular_aralar %>%
-  mutate(Edad_3 = round((Edad_1+Edad_2)/20)*10) %>%
-  pivot_longer(cols = starts_with("Edad"), names_to = "clase_Edad", values_to = "Edad_reg") %>%
-  filter(Edad_reg > 0) %>% #no tiene sentido contar con G y N >0 para Edad =0
-  rowwise() %>%
-  mutate(inicio_reg = list(c(escenario_Aralar,N,G, Edad_reg))) %>%
-  ungroup()
-
-#Índice de sitio, se asimilan las calidades mala, media, buena... a las de montes regulares
-IS_ = c(25) #c(13,16,19,22,25)
-
-#área basimétrica objetivo
-ab_objetivo_ = c(30) # c(15,20,25)
-precis_ab = 0.05 #margen para el ab_objetivo
-
-#rango de diámetros
-diam_max_ = seq(65.5,100.5, by =10) #seq(60.5,100.5, by =5)
-diam_min = 7.5
-
-#peso de la intervención, tanto por uno en área basimétrica
-peso_G_ = c(0.20, 0.25) #c(0.20, 0.225, 0.25)
-#años entre intervenciones, rotación
-rota_ = c(10) #c(5,7,10)
-
-
-gg <- expand.grid(inicio_reg = inicio_monte_regular_aralar_0$inicio_reg,
-                  IS = IS_,
-                  ab_objetivo = ab_objetivo_,
-                  peso_G = peso_G_,
-                  diam_max = diam_max_,
-                  rotacion = rota_)
-
-funcion_genera_escenarios_transformacion <- function( escenario = 1) {
- 
-print(paste0("escenario nº: ",escenario))
   
   #Índice de sitio, se asimilan las calidades mala, media, buena... a las de montes regulares
   IS = gg[escenario, "IS"]
@@ -131,20 +133,21 @@ print(paste0("escenario nº: ",escenario))
   Edad_reg <- as.numeric(gg[escenario, "inicio_reg"][[1]][4])
   
   #área basimétrica objetivo
-  ab_objetivo <<- gg[escenario, "ab_objetivo"]
+  ab_objetivo <- gg[escenario, "ab_objetivo"]
   precis_ab = 0.05 #margen para el ab_objetivo
   #peso de la intervención, tanto por uno en área basimétrica
-  peso_G <<- gg[escenario, "peso_G"]
+  peso_G <- gg[escenario, "peso_G"]
   #años entre intervenciones, rotación
-  rota <<-  gg[escenario, "rotacion"]
+  rota <-  gg[escenario, "rotacion"]
   #rango de diámetros
-  diam_max <<- gg[escenario, "diam_max"]
+  diam_max <- gg[escenario, "diam_max"]
   diam_min = 7.5
   
-  
+  #nombre del escenario del monte Regular inicial
+  escen_Regular <-  as.character(gg[escenario, "inicio_reg"][[1]][1])
   
   #carpeta de escenarios
-  escenario.nombre = paste0("E_",Edad_reg,"_N_",N_reg,"_IS_",IS, "_DMX_",as.character(diam_max*10))
+  escenario.nombre = paste0(escen_Regular,"_E_",Edad_reg,"_N_",N_reg,"_IS_",IS, "_DMX_",as.character(diam_max*10))
   ruta_dir_escenario = paste0("resultados/simulaciones/",grupo,"/",escenario.nombre)
   if(!file.exists(ruta_dir_escenario)) {
     dir.create(ruta_dir_escenario)
@@ -161,22 +164,22 @@ print(paste0("escenario nº: ",escenario))
   
   #corrección del crecimiento diametral
   correc_calidad_irreg$calidad <- c(13,16,19,22,25)
-  int_corr_ab <<- correc_calidad_irreg$intercept[which(correc_calidad_irreg$calidad == IS)]
-  slo_corr_ab <<- correc_calidad_irreg$pendiente[which(correc_calidad_irreg$calidad == IS)]
+  int_corr_ab <- correc_calidad_irreg$intercept[which(correc_calidad_irreg$calidad == IS)]
+  slo_corr_ab <- correc_calidad_irreg$pendiente[which(correc_calidad_irreg$calidad == IS)]
   
   
   #Determinar la curva objetivo----
       q = log(a_liocourt)/5
       K = (-40000/pi)*ab_objetivo/(exp(-q*diam_max)*(diam_max^2/q+2*diam_max/q^2+2/q^3)-
                                      exp(-q*diam_min)*(diam_min^2/q+2*diam_min/q^2+2/q^3))
-      N_x5 <<- data.frame(diam_min_ = seq(diam_min, diam_max, by=5)) %>%
+      N_x5 <- data.frame(diam_min_ = seq(diam_min, diam_max, by=5)) %>%
         mutate(diam_max_ = diam_min_+5) %>%
         mutate(N_x_y = -K/q*(exp(-q*diam_max_)- exp(-q*diam_min_))) %>%
         mutate(ab_ = pi*((diam_min_+2.5)/200)^2*N_x_y) %>%
         mutate(clase_D = diam_min_+2.5) 
   
   #Determinar la curva de inicio----
-      breaks_5cm <<- seq(2.5,152.5, by = 5) #divisiones teóricas de la distribución inicial
+      breaks_5cm <- seq(2.5,152.5, by = 5) #divisiones teóricas de la distribución inicial
       param_weibull_irreg <- func_expande_Weibull_irreg(N_a_ = N_reg, G_a_ = G_reg)
       #param_= func_expande_Weibull(i_, Dg_a_, N_a_) #tiene en cuanta la variación de "a", diámetro mínimo
       
@@ -244,16 +247,20 @@ print(paste0("escenario nº: ",escenario))
         select(-extra_, -suma_extra_N,-suma_extra_G,-suma_extra_V) 
       
       #variables dasocráticas iniciales
-      N_a[1] <<- sum(df_clase$N_antes, na.rm = TRUE)
-      G_a[1] <<- sum(df_clase$G_antes, na.rm = TRUE)
-      Dg_a[1] <<- sqrt(G_a[1]*(40000/(pi*N_a[1])))
-      dist_D_a[[1]] <<- df_clase
-      dist_d_cm_a[[1]] <<- df_v_carp
-      V_a[1] <<- sum(df_clase$V_antes, na.rm = TRUE)
+      N_a[1] <- sum(df_clase$N_antes, na.rm = TRUE)
+      G_a[1] <- sum(df_clase$G_antes, na.rm = TRUE)
+      Dg_a[1] <- sqrt(G_a[1]*(40000/(pi*N_a[1])))
+      dist_D_a[[1]] <- df_clase
+      dist_d_cm_a[[1]] <- df_v_carp
+      V_a[1] <- sum(df_clase$V_antes, na.rm = TRUE)
      
       
   #actualizar para la simulación
     # 1º actualizar "después en el primer año"
+      #las funciones "funcion_actualizar_despues" y "funcion_increm_anual" se han creado en el environment Globar, hay que
+      #pasarlas al environment Parent de la función actual para que lean las variables necesarias
+      environment(funcion_actualizar_despues) <- environment()
+      environment(funcion_increm_anual) <- environment()
       funcion_actualizar_despues(1)
     # 2º actualizar el resto de años
       for (i in c(2:t_fin)) {
@@ -265,7 +272,7 @@ print(paste0("escenario nº: ",escenario))
       
       
       
-      res <<- data.frame(IS_ = IS, Tiempo = tiempo,
+      res <- data.frame(IS_ = IS, Tiempo = tiempo,
                         N_a_ = N_a, G_a_ = G_a, Dg_a_ = Dg_a, V_a_ = V_a,
                         N_d_ = N_d,  G_d_ = G_d, Dg_d_ = Dg_d, V_d_ = V_d,
                         tratamiento = tratamiento) %>%
