@@ -26,7 +26,7 @@ lista_escenario.nombre_ <- c("mortalidad_IS25_alta",
                              "mortalidad_IS16_alta",
                              "mortalidad_IS13_alta")
 #grupo_ = "mortalidad_natural"
-funcion_genera_escenarios_mortalidad <- function(grupo_ = "prueba", escenario.nombre_ = "mortalidad_IS19_alta", edad_turno_ = 300,
+funcion_genera_escenarios_mortalidad <- function(grupo_ = "prueba", escenario.nombre_ = "mortalidad_IS19_alta", edad_turno_ = 500,
                                               N_ini_ = 1000) {
   print(paste(grupo_,escenario.nombre_,N_ini_))
   

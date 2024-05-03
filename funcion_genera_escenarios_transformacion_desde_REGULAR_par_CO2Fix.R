@@ -72,7 +72,8 @@ tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria
 #                   diam_max = diam_max_,
 #                   rotacion = rota_)
 
-funcion_genera_escenarios_transformacion_desde_REG <- function( escenario = 1, grupo = grupo_transformacion, gg = gg_) {
+funcion_genera_escenarios_transformacion_desde_REG <- function( escenario = 1, grupo = grupo_transformacion,
+                                                                gg = gg_, para_excel_solo_trat_reg = para_excel_solo_trat) {
  
 print(paste0("escenario nº: ",escenario))
   
@@ -271,8 +272,7 @@ print(paste0("escenario nº: ",escenario))
       }    
       
       
-      
-      res <- data.frame(IS_ = IS, Tiempo = tiempo,
+      res <- data.frame(IS_ = IS, Tiempo = tiempo, 
                         N_a_ = N_a, G_a_ = G_a, Dg_a_ = Dg_a, V_a_ = V_a,
                         N_d_ = N_d,  G_d_ = G_d, Dg_d_ = Dg_d, V_d_ = V_d,
                         tratamiento = tratamiento) %>%
@@ -289,7 +289,6 @@ print(paste0("escenario nº: ",escenario))
         mutate(Rel_growth_foliage_ = Rel_growth_foliage) %>%
         mutate(Rel_growth_branches_ = Rel_growth_branches) %>%
         mutate(Rel_growth_roots_ = Rel_growth_roots)
-      
       
       #ggplot(res, aes(x=Tiempo, y = Crec_corr_))+geom_point()
       
@@ -345,8 +344,8 @@ print(paste0("escenario nº: ",escenario))
       
       ggsave(paste0(ruta_dir_escenario,"/",escenario.nombre,".png"), width = 677.4 , height = 364.416, units = "mm")
       
-      
       para_excel_solo_trat <- para_excel_res %>%
+        mutate(Tiempo = tiempo+Edad_reg-1) %>% #se pasa el tiempo a la edad a la que se inicia la transformación, para comparar en CO2Fix
         filter(Tiempo %in% seq(5,500, by=5) | tratamiento %in% c("final","clareo",tipos_claras)) %>%
         mutate(Mortalidad_natural = ifelse(tratamiento %in% c("mortalidad natural"),1,0)) %>%
         mutate(Mortality = Mortalidad_natural*round(V_e_/V_a_,2)) %>%
@@ -356,6 +355,30 @@ print(paste0("escenario nº: ",escenario))
         mutate(Fraction_removed = Thinning_Harvest*round(V_e_/V_a_,2)) %>%
         mutate(Stems_log_wood = ifelse(V_carp_ == 0, 0,round(V_carp_/V_e_,3))) %>%
         mutate(Stems_pulp_pap = 1-Stems_log_wood) 
+      
+      #se genera el dataframe que resume la evolución, uniendo la parte de crecimiento en monte regular con la 
+      #correspondiente en monte irregular, para compararlo con el de monte regular en CO2Fix como línea base
+      para_excel_solo_trat_reg <- para_excel_solo_trat_reg %>%
+        rename(Tiempo = Edad, V_carp_= V_carp, Rel_growth_foliage_ = Rel_growth_foliage,
+               Rel_growth_branches_ =  Rel_growth_branches, Rel_growth_roots_ = Rel_growth_roots) %>%
+        filter(Tiempo < Edad_reg) %>%
+        select (names(para_excel_solo_trat) )
+                                         
+      para_excel_solo_trat <- para_excel_solo_trat %>%
+        bind_rows(para_excel_solo_trat_reg) %>%
+        arrange(Tiempo)
+        
+      # para_excel_solo_trat <- para_excel_res %>%
+      #   filter(Tiempo %in% seq(5,500, by=5) | tratamiento %in% c("final","clareo",tipos_claras)) %>%
+      #   mutate(Mortalidad_natural = ifelse(tratamiento %in% c("mortalidad natural"),1,0)) %>%
+      #   mutate(Mortality = Mortalidad_natural*round(V_e_/V_a_,2)) %>%
+      #   mutate(Stems = ifelse(Tiempo %in% seq(5,500, by=5), 1, 0)) %>%
+      #   mutate(CAI = Stems*Crec_corr_) %>%
+      #   mutate(Thinning_Harvest = ifelse(tratamiento %in% c("final","clareo",tipos_claras),1,0)) %>%
+      #   mutate(Fraction_removed = Thinning_Harvest*round(V_e_/V_a_,2)) %>%
+      #   mutate(Stems_log_wood = ifelse(V_carp_ == 0, 0,round(V_carp_/V_e_,3))) %>%
+      #   mutate(Stems_pulp_pap = 1-Stems_log_wood) 
+      
       
       write.xlsx(para_excel_solo_trat, paste0(ruta_dir_escenario,"/",escenario.nombre,"_resumido.xlsx"))
       

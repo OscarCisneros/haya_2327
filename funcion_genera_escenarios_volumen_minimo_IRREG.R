@@ -797,6 +797,8 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
     map(seq(1,nrow(id_variab_CO2Fix)), ~ funcion_archivos_CO2_fix(id_arch = .[1],
                                                                   para_CO2Fix_ = "para_CO2Fix"))
     
+    ############################################################################
+    ############################################################################
     #lanzar los escenarios de transformacion a irregular
     gg_reg <- res %>%
       filter(Edad %in% c(60,70,80)) %>%
@@ -847,7 +849,8 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
                       diam_max = diam_max_,
                       rotacion = rota_)
     #lanzar función para pasar a irregular
-    map(seq(1,nrow(gg_)), ~ funcion_genera_escenarios_transformacion_desde_REG(escenario = .[1],  grupo = grupo_transformacion, gg = gg_))
+    map(seq(1,nrow(gg_)), ~ funcion_genera_escenarios_transformacion_desde_REG(escenario = .[1],  grupo = grupo_transformacion,
+                                                                               gg = gg_, para_excel_solo_trat_reg = para_excel_solo_trat))
     
     #Resumen del escenario
     retorno <- data.frame(grupo = grupo, escenario = escenario.nombre,

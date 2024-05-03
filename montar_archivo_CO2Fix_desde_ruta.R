@@ -5,10 +5,9 @@
 #después se unen los diferentes escenarios, cada uno reorganizado para coincidir con la estructura original
 library(tidyverse)
 
-plan_comarcal_1_1_8_17_dif_dens_IS13_alta_7000
 
 #ruta de los archivos de monte regular
-grupo_ <-  "planes_comarcales_navarra" #"go_fagus" #"planes_comarcales_navarra" "selv_macizo_pirenaico" "CNPF"
+grupo_ <-  "prueba" #"go_fagus" #"planes_comarcales_navarra" "selv_macizo_pirenaico" "CNPF"
 densidades_iniciales <- c(7000,5000)
 
 csv_nombres <- list.files(paste0("datos/escenarios/",grupo_), pattern = "\\.csv")
