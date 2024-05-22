@@ -342,7 +342,7 @@ print(paste0("escenario nº: ",escenario))
       para_excel_solo_trat <- para_excel_res %>%
         filter(Tiempo %in% seq(5,500, by=5) | tratamiento %in% c("final","clareo",tipos_claras)) %>%
         mutate(Mortalidad_natural = ifelse(tratamiento %in% c("mortalidad natural"),1,0)) %>%
-        mutate(Mortality = Mortalidad_natural*round(V_e_/V_a_,2)) %>%
+        mutate(Mortality = ifelse(V_a_== 0, 0, Mortalidad_natural*round(V_e_/V_a_,2))) %>%
         mutate(Stems = ifelse(Tiempo %in% seq(5,500, by=5), 1, 0)) %>%
         mutate(CAI = Stems*Crec_corr_) %>%
         mutate(Thinning_Harvest = ifelse(tratamiento %in% c("final","clareo",tipos_claras),1,0)) %>%

@@ -214,7 +214,7 @@ library(tidyverse)
       ggplot(PCMayores_Ifn4_haya_depura_2, aes(x=dgm,y=n))+
         geom_point()
       
-      #ANÁLISIS ELEMINANDO LAS PARCELAS SIN MORTATIDAD DESDE EL ANTERIOR INVENTARIO
+      #ANÁLISIS ELEMINANDO LAS PARCELAS SIN MORTALIDAD DESDE EL ANTERIOR INVENTARIO
       #se eliminan del análisis las parcelas sin mortalidad desde el anterior inventario
       
       cobbDouglas <- sfa( log(n) ~ log(dgm),
@@ -245,7 +245,7 @@ library(tidyverse)
         filter(n_mort > 0) %>%
         mutate(predicho = exp(predict(cobbDouglas))) %>% filter(predicho < n)
       
-      #ANÁLISIS SIN ELIMINAR LAS PARCELAS SIN MORTATIDAD DESDE EL ANTERIOR INVENTARIO
+      #ANÁLISIS SIN ELIMINAR LAS PARCELAS SIN MORTALIDAD DESDE EL ANTERIOR INVENTARIO
       #se eliminan del análisis las parcelas sin mortalidad desde el anterior inventario
       
       cobbDouglas <- sfa( log(n) ~ log(dgm),
@@ -263,16 +263,19 @@ library(tidyverse)
         theme(text = element_text(size = 30)) 
       
       ggplot(PCMayores_Ifn4_haya_depura_2 , aes(x= dgm, y =n ))+geom_point(size = 4, color = "blue")+
-        geom_smooth(stat = "smooth")+
+        #geom_smooth(stat = "smooth")+
         geom_line(aes(x=dgm, y=exp(predict(cobbDouglas)))) +
         ggtitle("Modelo de mortalidad natural. SFA")+
         scale_x_continuous(breaks = seq(0, 120, by = 5))+
         theme_light()+
         labs(x = "Dg (cm)", y = "N (arb/ha)")+
-        theme(text = element_text(size = 30)) 
+        theme(axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0))) +
+        theme(axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0))) +
+        theme(plot.title = element_text(family = "sans", margin=margin(0,0,30,0)))+
+        theme(text = element_text(size = 40)) 
       
       
-      
+      ggsave("informe/graf/SFA_log.png", width = 677.4 , height = 364.416, units = "mm")
       
       
       
@@ -414,9 +417,26 @@ library(tidyverse)
         na.omit()
         
       summary(PCParcelas_mort$mort_anual)
-      mort_5_ <- 5*mean(PCParcelas_mort$mort_anual)
+      mort_5_ <- 5*mean(PCParcelas_mort$mort_anual, na.rm= TRUE)
         
-        
+      ggplot(PCParcelas_mort, aes(5*mort_anual))+geom_boxplot()
+      ggplot(PCParcelas_mort , aes(x= 5*mort_anual*100 ))+
+        geom_density(aes(y = after_stat(count)), color = "blue", fill = "lightblue")+
+        geom_vline(xintercept = mort_5_*100, linetype="dashed",  color = "red", linewidth=1.5)+
+        annotate("label", size = 10, x = mort_5_*100+5,y = 25, label = paste0("mortalidad media en 5 años: ", round(mort_5_*100, 3)," (%)"))+
+        ggtitle("Distribución de la mortalidad global", subtitle = "En rojo la media de mortalidad en 5 años")+
+        #scale_x_continuous(breaks = seq(0, 120, by = 5))+
+        theme_light()+
+        labs(x = "Mortalidad en 5 años (%)", y = "Cuenta")+
+        theme(axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0))) +
+        theme(axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 0, l = 0))) +
+        theme(plot.title = element_text(family = "sans", margin=margin(0,0,30,0)))+
+        theme(text = element_text(size = 40)) +
+        theme(plot.subtitle=element_text(size=30, face="italic", margin=margin(0,0,20,0)))
+     
+     
+      
+      ggsave("informe/graf/mort_5.png", width = 677.4 , height = 364.416, units = "mm")
         
       ################################################################################
       ########### Mortalidad inventariada ----

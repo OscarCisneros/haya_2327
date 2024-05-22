@@ -3,9 +3,10 @@
 #se incluyen los datos generales de clima y destino de productos propuesto por Mikel
 #se cambia el número de años de simulación, el número de escenarios y se pone a cero el escenario de simulación
 #después se unen los diferentes escenarios, cada uno reorganizado para coincidir con la estructura original
+library(tidyverse)
 
 #nombre del archivo CO2Fix a generar
-archiv_para_CO2Fix = "prueba_varios_IS25.co2"
+archiv_para_CO2Fix = "prueba_varios_IS25.co2" #"prueba_varios_IS25.co2"
 
 #cargar el encabezamiento general
 load("datos/escrib_CO2Fix/encabezamientos/encabezamiento_general_CO2Fix")
@@ -13,17 +14,46 @@ load("datos/escrib_CO2Fix/encabezamientos/encabezamiento_general_CO2Fix")
 load("datos/escrib_CO2Fix/encabezamientos/plantilla_escenario_CO2Fix")
 
 #ruta de escenarios a integrar
+
+grupo_transformacion <- "transformacion"
+nombres_irreg <- list.files(paste0("resultados/simulaciones/",grupo_transformacion), pattern = "PC1_IS25_alta*")
+esc_nombres_irreg <- paste0("resultados/simulaciones/",grupo_transformacion,"/",nombres_irreg)
+
 rutas_escenarios <- c(
-  "resultados/simulaciones/CNPF/Prueba_Monte_bajo_CNPF_IS25_alta_5000",
-  "resultados/simulaciones/go_fagus/H1_IS25_alta_5000",
-  "resultados/simulaciones/go_fagus/H5_IS25_alta_5000",
-  "resultados/simulaciones/planes_comarcales_navarra/cod_5_1_8_17_IS25_alta_5000",
-  "resultados/simulaciones/planes_comarcales_navarra/cod_1_1_8_17_IS25_alta_5000",
-  "resultados/simulaciones/selv_macizo_pirenaico/prueba_IS25_conversion_alta_5000",
-  "resultados/simulaciones/prueba/E_50_N_915_IS_25_DMX_655",
-  "resultados/simulaciones/prueba/E_60_N_915_IS_25_DMX_755",
-  "resultados/simulaciones/prueba/E_70_N_915_IS_25_DMX_855",
-  "resultados/simulaciones/prueba/E_60_N_915_IS_25_DMX_955")
+  "resultados/simulaciones/PC/PC1_IS25_alta_4029",
+  "resultados/simulaciones/mortalidad_natural/mortalidad_natural_IS25_alta_5000",
+  "resultados/simulaciones/go_fagus/H1_IS25_alta_4029",
+  "resultados/simulaciones/go_fagus/H2_IS25_alta_4029",
+  "resultados/simulaciones/go_fagus/H3_IS25_alta_4029",
+  "resultados/simulaciones/go_fagus/H5_IS25_alta_4029",
+  "resultados/simulaciones/label_bas_carbon/conversion_bajo_IS25_alta_4029",
+  "resultados/simulaciones/label_bas_carbon/ref_monte_bajo_sin_clareos_IS25_alta_4029",
+  esc_nombres_irreg
+)
+
+# rutas_escenarios <- c(
+#   "resultados/simulaciones/CNPF/Prueba_Monte_bajo_CNPF_IS25_alta_5000",
+#   "resultados/simulaciones/go_fagus/H1_IS25_alta_5000",
+#   "resultados/simulaciones/go_fagus/H5_IS25_alta_5000",
+#   "resultados/simulaciones/planes_comarcales_navarra/cod_5_1_8_17_IS25_alta_5000",
+#   "resultados/simulaciones/planes_comarcales_navarra/cod_1_1_8_17_IS25_alta_5000",
+#   "resultados/simulaciones/selv_macizo_pirenaico/prueba_IS25_conversion_alta_5000",
+#   "resultados/simulaciones/prueba/E_50_N_915_IS_25_DMX_655",
+#   "resultados/simulaciones/prueba/E_60_N_915_IS_25_DMX_755",
+#   "resultados/simulaciones/prueba/E_70_N_915_IS_25_DMX_855",
+#   "resultados/simulaciones/prueba/E_60_N_915_IS_25_DMX_955")
+
+# rutas_escenarios <- c(
+# "resultados/simulaciones/prueba/plan_comarcal_1_1_8_17_dif_dens_IS13_alta_7000",
+# "resultados/simulaciones/transformacion/plan_comarcal_1_1_8_17_dif_dens_IS13_alta_E_60_N_1078_IS_13_DMX_605",
+# "resultados/simulaciones/transformacion/plan_comarcal_1_1_8_17_dif_dens_IS13_alta_E_70_N_736_IS_13_DMX_605")
+
+# rutas_escenarios <- c(
+#   "resultados/simulaciones/prueba/plan_comarcal_1_1_8_17_dif_dens_IS13_alta_7000",
+#   "resultados/simulaciones/transformacion/plan_comarcal_1_1_8_17_dif_dens_IS13_alta_E_80_N_370_IS_13_DMX_805",
+#   "resultados/simulaciones/transformacion/plan_comarcal_1_1_8_17_dif_dens_IS13_alta_E_60_N_1078_IS_13_DMX_1005",
+#   "resultados/simulaciones/transformacion/plan_comarcal_1_1_8_17_dif_dens_IS13_alta_E_70_N_736_IS_13_DMX_1005")
+
 
 #función para componer cada escenario
 funcion_compone_escenario <- function(id_ = 1) {

@@ -1,5 +1,5 @@
 #montar archivo CO2Fix, desde un nombre que comparten enparte varios escenarios a comparar
-#a partir del encabezamiento general de un archivo CO2Fix elaboardo por Mikel
+#a partir del encabezamiento general de un archivo CO2Fix elaborado por Mikel
 #se incluyen los datos generales de clima y destino de productos propuesto por Mikel
 #se cambia el número de años de simulación, el número de escenarios y se pone a cero el escenario de simulación
 #después se unen los diferentes escenarios, cada uno reorganizado para coincidir con la estructura original

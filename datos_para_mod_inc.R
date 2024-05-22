@@ -41,7 +41,7 @@ PCMayores_Ifn3_haya_compara <- PCMayores_Ifn3 %>%
     Dn_ifn3 >= 22.5 & Dn_ifn3 < 42.5 ~ 10000/(pi*15^2),
     Dn_ifn3 >= 42.5 ~ 10000/(pi*25^2)
   )) %>%
-  group_by(Provincia,Estadillo, Especie) %>%
+  group_by(Provincia,Estadillo,Especie) %>%
   arrange(desc(Dn_ifn3)) %>%
   mutate(cum_ = cumsum(factor_exp)) %>%
   mutate(cum_1 = cum_-100) %>%

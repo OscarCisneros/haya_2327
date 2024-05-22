@@ -258,7 +258,7 @@ print(paste0("escenario nº: ",escenario))
       
   #actualizar para la simulación
     # 1º actualizar "después en el primer año"
-      #las funciones "funcion_actualizar_despues" y "funcion_increm_anual" se han creado en el environment Globar, hay que
+      #las funciones "funcion_actualizar_despues" y "funcion_increm_anual" se han creado en el environment Global, hay que
       #pasarlas al environment Parent de la función actual para que lean las variables necesarias
       environment(funcion_actualizar_despues) <- environment()
       environment(funcion_increm_anual) <- environment()
@@ -348,7 +348,7 @@ print(paste0("escenario nº: ",escenario))
         mutate(Tiempo = tiempo+Edad_reg-1) %>% #se pasa el tiempo a la edad a la que se inicia la transformación, para comparar en CO2Fix
         filter(Tiempo %in% seq(5,500, by=5) | tratamiento %in% c("final","clareo",tipos_claras)) %>%
         mutate(Mortalidad_natural = ifelse(tratamiento %in% c("mortalidad natural"),1,0)) %>%
-        mutate(Mortality = Mortalidad_natural*round(V_e_/V_a_,2)) %>%
+        mutate(Mortality = ifelse(V_a_== 0, 0, Mortalidad_natural*round(V_e_/V_a_,2))) %>%
         mutate(Stems = ifelse(Tiempo %in% seq(5,500, by=5), 1, 0)) %>%
         mutate(CAI = Stems*Crec_corr_) %>%
         mutate(Thinning_Harvest = ifelse(tratamiento %in% c("final","clareo",tipos_claras),1,0)) %>%

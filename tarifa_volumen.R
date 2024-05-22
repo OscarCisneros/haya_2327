@@ -21,3 +21,22 @@ save(lm.vcc, file = "datos/lm.vcc")
 jj <- data.frame(Dn_mm = seq(50,750, by=50)) %>%
   mutate(predicho = predict(lm.vcc, newdata = data.frame(Dn_mm = Dn_mm))/1000)
 ggplot(jj, aes(x= Dn_mm, y = predicho))+geom_point()
+
+#estadísticos de ajuste
+ajuste_vol <- data.frame(observado = Pares_Dn_Vol$Vcc,
+                         predicho = predict(lm.vcc),
+                         residuos = resid(lm.vcc)) 
+
+#Estadísticos
+estad_ajuste_vol <- data.frame(
+  modelo = "dmin",
+  SSE = round(sum((ajuste_vol$residuos)^2),1),
+  SST = round(sum((Pares_Dn_Vol$Vcc-mean(Pares_Dn_Vol$Vcc))^2),1),
+  nparms = 3) %>%
+  mutate(
+    e = round(mean(ajuste_vol$residuos),4),
+    R2 = round((1-SSE/SST)*100,2),
+    RMCE = round(sqrt(SSE/(nrow(Pares_Dn_Vol)-nparms)),3)) %>%
+  mutate(e_perc = round(e*100/mean(Pares_Dn_Vol$Vcc),4),
+         RMCE_perc = round(RMCE*100/mean(Pares_Dn_Vol$Vcc),3)) %>%
+  select(modelo, e, e_perc, RMCE, RMCE_perc, R2)

@@ -33,6 +33,10 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
     IS <- substr(escenario.nombre_, as.numeric(posicion)+2,  as.numeric(posicion)+3)
     IS <- as.numeric(IS)
     
+    if (IS == 13) {
+      vol_min = 30
+    }
+    
     #esquema de claras
     esquemas_claras <- c("baja","media","alta")
     localiz_esquema <- c(grepl( esquemas_claras[1], escenario.nombre_, fixed = TRUE),
@@ -650,19 +654,23 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
       bind_rows(res_daso_claras_0  %>% mutate(origen = "claras"))
     
     ggplot(graf_mort_ordenaciones_claras %>% filter(is.na(origen)), aes(x=Edad, y=V_a_, col= as.factor(IS_)))+
-      geom_line(size = 1)+
+      geom_line(size = 4, color = "darkorange")+
       geom_point(data=graf_mort_ordenaciones_claras %>% filter(origen == "ordenaciones"),
                  aes(x= Edad, y = V_a_ ), size = 2, color = "blue")+
       new_scale("shape") +
       geom_point(data=graf_mort_ordenaciones_claras %>% filter(origen == "claras"),
-                 aes(x= Edad, y = V_a_, shape = trat), size = 3,  col = "red")+
-      ggtitle(paste0("Datos de ordenaciones. ",grupo,"/",escenario.nombre,"_IS_",IS),
-              subtitle = paste0("Tipo: Adultas susceptibles de claras. Evolución desde ", N_ini, " arb/ha"))+
+                 aes(x= Edad, y = V_a_, shape = trat), size = 8,  col = "red")+
+      ggtitle(paste(paste0("Grupo: ",grupo),  paste0("Escenario: ",escenario.nombre), sep="\n"),
+              subtitle = paste0("Línea: Evolución de Vcc m3/ha. Puntos azules: Datos de ordenaciones. Inicio: ", N_ini, " arb/ha"))+
       theme_light()+
       labs(x = "Edad", y = "Vcc m3/ha")+
       labs(color = "Evolución según IS")+
       labs(shape = "Clara. Tratamiento")+
-      theme(text = element_text(size = 30))
+      theme(text = element_text(size = 40))+
+      theme(axis.title.y = element_text(size=50, margin = margin(t = 0, r = 20, b = 0, l = 0))) +
+      theme(axis.title.x = element_text(size=50, margin = margin(t = 20, r = 0, b = 0, l = 0))) +
+      theme(plot.title = element_text(size=60, family = "sans", margin=margin(0,0,30,0)))+
+      theme(plot.subtitle=element_text(size=40, face="italic", margin=margin(0,0,20,0)))
     
     
     ggsave(paste0(ruta_dir_escenario,"/",escenario.nombre,"_IS_",IS,"_N_ini_",N_ini,".png"), width = 677.4 , height = 364.416, units = "mm")
@@ -687,7 +695,7 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
     para_excel_solo_trat <- para_excel_res %>%
       filter(Edad %in% seq(5,500, by=5) | tratamiento %in% c("mortalidad natural", "final","clareo",tipos_claras)) %>%
       mutate(Mortalidad_natural = ifelse(tratamiento %in% c("mortalidad natural"),1,0)) %>%
-      mutate(Mortality = Mortalidad_natural*round(V_e_/V_a_,2)) %>%
+      mutate(Mortality = ifelse(V_a_== 0, 0, Mortalidad_natural*round(V_e_/V_a_,2))) %>%
       mutate(Stems = ifelse(Edad %in% seq(5,500, by=5), 1, 0)) %>%
       mutate(CAI = Stems*Crec_corr_) %>%
       mutate(Thinning_Harvest = ifelse(tratamiento %in% c("final","clareo",tipos_claras),1,0)) %>%

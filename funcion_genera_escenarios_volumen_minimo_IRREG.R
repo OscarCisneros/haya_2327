@@ -12,6 +12,10 @@ library(tidyverse)
 vol_min = 40
 num_turnos <- 3
 
+#tipos de masa de inicio, según la ordnación de Aralar
+tipos_masa <- data.frame(tipo_m = c("A","B", "C","D"),
+                         Edad = c(50,30,100,70))
+
 #datos de claras para el gráfico
 res_daso_claras <- read.csv2("datos/claras/res_daso_claras.csv")
 res_daso_claras_0 <- res_daso_claras %>%
@@ -20,8 +24,11 @@ res_daso_claras_0 <- res_daso_claras %>%
 #datos de ordenaciones para el gráfico
 dat_ordenaciones_adultas <- read.csv("resultados/dat_ordenaciones_adultas.csv")
 
-funcion_genera_escenarios_vol_min_IRREG <- function(grupo_ = "prueba", escenario.nombre_ = "plan_comarcal_1_1_8_17_dif_dens_IS13_alta",
-                                      N_ini_ = 7000) {
+# funcion_genera_escenarios_vol_min_IRREG <- function(grupo_ = "prueba", escenario.nombre_ = "plan_comarcal_1_1_8_17_dif_dens_IS13_alta",
+#                                                     N_ini_ = 7000)
+
+funcion_genera_escenarios_vol_min_IRREG <- function(grupo_ = "PC", escenario.nombre_ = "PC1_IS25_alta",
+                                      N_ini_ = 4029) {
 print(paste(grupo_,escenario.nombre_,N_ini_))
   
 #comprobar si existe directorio para el escenario y en caso contrario crearlo
@@ -655,19 +662,39 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
       bind_rows(res_daso_claras_0  %>% mutate(origen = "claras"))
     
     ggplot(graf_mort_ordenaciones_claras %>% filter(is.na(origen)), aes(x=Edad, y=V_a_, col= as.factor(IS_)))+
-      geom_line(size = 1)+
+      geom_line(size = 4, color = "darkorange")+
       geom_point(data=graf_mort_ordenaciones_claras %>% filter(origen == "ordenaciones"),
                  aes(x= Edad, y = V_a_ ), size = 2, color = "blue")+
       new_scale("shape") +
       geom_point(data=graf_mort_ordenaciones_claras %>% filter(origen == "claras"),
-                 aes(x= Edad, y = V_a_, shape = trat), size = 3,  col = "red")+
-      ggtitle(paste0("Datos de ordenaciones. ",grupo,"/",escenario.nombre,"_IS_",IS),
-              subtitle = paste0("Tipo: Adultas susceptibles de claras. Evolución desde ", N_ini, " arb/ha"))+
+                 aes(x= Edad, y = V_a_, shape = trat), size = 8,  col = "red")+
+      ggtitle(paste(paste0("Grupo: ",grupo),  paste0("Escenario: ",escenario.nombre), sep="\n"),
+              subtitle = paste0("Línea: Evolución de Vcc m3/ha. Puntos azules: Datos de ordenaciones. Inicio: ", N_ini, " arb/ha"))+
       theme_light()+
       labs(x = "Edad", y = "Vcc m3/ha")+
       labs(color = "Evolución según IS")+
       labs(shape = "Clara. Tratamiento")+
-      theme(text = element_text(size = 30))
+      theme(text = element_text(size = 40))+
+      theme(axis.title.y = element_text(size=50, margin = margin(t = 0, r = 20, b = 0, l = 0))) +
+      theme(axis.title.x = element_text(size=50, margin = margin(t = 20, r = 0, b = 0, l = 0))) +
+      theme(plot.title = element_text(size=60, family = "sans", margin=margin(0,0,30,0)))+
+      theme(plot.subtitle=element_text(size=40, face="italic", margin=margin(0,0,20,0)))
+    
+    
+    # ggplot(graf_mort_ordenaciones_claras %>% filter(is.na(origen)), aes(x=Edad, y=V_a_, col= as.factor(IS_)))+
+    #   geom_line(size = 1)+
+    #   geom_point(data=graf_mort_ordenaciones_claras %>% filter(origen == "ordenaciones"),
+    #              aes(x= Edad, y = V_a_ ), size = 2, color = "blue")+
+    #   new_scale("shape") +
+    #   geom_point(data=graf_mort_ordenaciones_claras %>% filter(origen == "claras"),
+    #              aes(x= Edad, y = V_a_, shape = trat), size = 3,  col = "red")+
+    #   ggtitle(paste0("Datos de ordenaciones. ",grupo,"/",escenario.nombre,"_IS_",IS),
+    #           subtitle = paste0("Tipo: Adultas susceptibles de claras. Evolución desde ", N_ini, " arb/ha"))+
+    #   theme_light()+
+    #   labs(x = "Edad", y = "Vcc m3/ha")+
+    #   labs(color = "Evolución según IS")+
+    #   labs(shape = "Clara. Tratamiento")+
+    #   theme(text = element_text(size = 30))
     
     
     ggsave(paste0(ruta_dir_escenario,"/",escenario.nombre,"_IS_",IS,"_N_ini_",N_ini,".png"), width = 677.4 , height = 364.416, units = "mm")
@@ -692,7 +719,7 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
     para_excel_solo_trat <- para_excel_res %>%
       filter(Edad %in% seq(5,500, by=5) | tratamiento %in% c("mortalidad natural", "final","clareo",tipos_claras)) %>%
       mutate(Mortalidad_natural = ifelse(tratamiento %in% c("mortalidad natural"),1,0)) %>%
-      mutate(Mortality = Mortalidad_natural*round(V_e_/V_a_,2)) %>%
+      mutate(Mortality = ifelse(V_a_== 0, 0, Mortalidad_natural*round(V_e_/V_a_,2))) %>%
       mutate(Stems = ifelse(Edad %in% seq(5,500, by=5), 1, 0)) %>%
       mutate(CAI = Stems*Crec_corr_) %>%
       mutate(Thinning_Harvest = ifelse(tratamiento %in% c("final","clareo",tipos_claras),1,0)) %>%
@@ -801,14 +828,25 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
     ############################################################################
     #lanzar los escenarios de transformacion a irregular
     gg_reg <- res %>%
-      filter(Edad %in% c(60,70,80)) %>%
+      filter(Edad %in% tipos_masa$Edad) %>%
       select(Edad, N_a_, G_a_) %>%
       mutate(N_a_ = as.integer(N_a_),
              G_a_ = round(G_a_, 2)) %>%
       mutate(escenario_transformacion = escenario.nombre) %>%
+      left_join(tipos_masa) %>%
       rowwise() %>%
-      mutate(inicio_reg = list(c(escenario_transformacion,N_a_,G_a_,Edad))) %>%
+      mutate(inicio_reg = list(c(escenario_transformacion,N_a_,G_a_,Edad,tipo_m))) %>%
       ungroup()
+    
+    # gg_reg <- res %>%
+    #   filter(Edad %in% c(30,50,70,100)) %>%
+    #   select(Edad, N_a_, G_a_) %>%
+    #   mutate(N_a_ = as.integer(N_a_),
+    #          G_a_ = round(G_a_, 2)) %>%
+    #   mutate(escenario_transformacion = escenario.nombre) %>%
+    #   rowwise() %>%
+    #   mutate(inicio_reg = list(c(escenario_transformacion,N_a_,G_a_,Edad))) %>%
+    #   ungroup()
     
     #Denominación del grupo
     grupo_transformacion = "transformacion" #"transformacion"
@@ -829,15 +867,15 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
     #IS_ = c(25) #c(13,16,19,22,25)
     
     #área basimétrica objetivo
-    ab_objetivo_ = c(25) # c(15,20,25)
+    ab_objetivo_ = c(20) # c(15,20,25)
     precis_ab = 0.05 #margen para el ab_objetivo
     
     #rango de diámetros
-    diam_max_ = seq(65.5,100.5, by =10) #seq(60.5,100.5, by =5)
+    diam_max_ = seq(60.5,100.5, by =20) #seq(60.5,100.5, by =5)
     diam_min = 7.5
     
     #peso de la intervención, tanto por uno en área basimétrica
-    peso_G_ = c(0.25) #c(0.20, 0.225, 0.25)
+    peso_G_ = c(0.20) #c(0.20, 0.225, 0.25)
     #años entre intervenciones, rotación
     rota_ = c(10) #c(5,7,10)
     
@@ -849,8 +887,13 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
                       diam_max = diam_max_,
                       rotacion = rota_)
     #lanzar función para pasar a irregular
-    map(seq(1,nrow(gg_)), ~ funcion_genera_escenarios_transformacion_desde_REG(escenario = .[1],  grupo = grupo_transformacion,
-                                                                               gg = gg_, para_excel_solo_trat_reg = para_excel_solo_trat))
+    # map(seq(1,nrow(gg_)), ~ funcion_genera_escenarios_transformacion_desde_REG(escenario = .[1],  grupo = grupo_transformacion,
+    #                                                                            gg = gg_, para_excel_solo_trat_reg = para_excel_solo_trat))
+    
+    
+    map(seq(1,nrow(gg_)), ~ funcion_genera_escenarios_transformacion_desde_REG_unidos_(escenario = .[1],  grupo = grupo_transformacion,
+                                                                                gg = gg_, para_excel_solo_trat_reg = para_excel_solo_trat, res_reg = res))
+    
     
     #Resumen del escenario
     retorno <- data.frame(grupo = grupo, escenario = escenario.nombre,
