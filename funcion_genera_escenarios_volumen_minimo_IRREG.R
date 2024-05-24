@@ -13,8 +13,14 @@ vol_min = 40
 num_turnos <- 3
 
 #tipos de masa de inicio, según la ordnación de Aralar
+
 tipos_masa <- data.frame(tipo_m = c("A","B", "C","D"),
                          Edad = c(50,30,100,70))
+
+#las calidades 13 y 16 dan error en el tipo B (edad = 30)
+# tipos_masa <- data.frame(tipo_m = c("A", "C","D"),
+#                          Edad = c(50,100,70))
+
 
 #datos de claras para el gráfico
 res_daso_claras <- read.csv2("datos/claras/res_daso_claras.csv")
@@ -27,8 +33,8 @@ dat_ordenaciones_adultas <- read.csv("resultados/dat_ordenaciones_adultas.csv")
 # funcion_genera_escenarios_vol_min_IRREG <- function(grupo_ = "prueba", escenario.nombre_ = "plan_comarcal_1_1_8_17_dif_dens_IS13_alta",
 #                                                     N_ini_ = 7000)
 
-funcion_genera_escenarios_vol_min_IRREG <- function(grupo_ = "PC", escenario.nombre_ = "PC1_IS25_alta",
-                                      N_ini_ = 4029) {
+funcion_genera_escenarios_vol_min_IRREG <- function(grupo_ = "PC", escenario.nombre_ = "PC1_IS16_alta",
+                                      N_ini_ = 10396) {
 print(paste(grupo_,escenario.nombre_,N_ini_))
   
 #comprobar si existe directorio para el escenario y en caso contrario crearlo

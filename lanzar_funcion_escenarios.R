@@ -96,8 +96,8 @@ grupo_ <-  "go_fagus" #"go_fagus" #"planes_comarcales_navarra" "selv_macizo_pire
 # densidades_iniciales_ <- c(4029,5469,7510,10396,14418)
 # is_ <- c("IS25","IS22","IS19","IS16","IS13")
 
-densidades_iniciales_ <- c(7000)
-is_ <- c("IS22")
+densidades_iniciales_ <- c(13000)
+is_ <- c("IS13")
 
 csv_nombres <- list.files(paste0("datos/escenarios/",grupo_), pattern = "\\.csv")
 csv_nombres <- substr(csv_nombres, 1, nchar(csv_nombres)-4)
@@ -127,8 +127,8 @@ grupo_ <- "PC" #"go_fagus" #"planes_comarcales_navarra" "selv_macizo_pirenaico" 
 # densidades_iniciales_ <- c(4029,5469,7510,10396,14418)
 # is_ <- c("IS25","IS22","IS19","IS16","IS13")
 
-densidades_iniciales_ <- c(7500)
-is_ <- c("IS25")
+densidades_iniciales_ <- c(14418)
+is_ <- c("IS13")
 
 csv_nombres <- list.files(paste0("datos/escenarios/",grupo_), pattern = "\\.csv")
 csv_nombres <- substr(csv_nombres, 1, nchar(csv_nombres)-4)
