@@ -1,5 +1,4 @@
 #función para generar los escenarios en xls para CO2Fix y obtener la suma de Crecimiento corriente anual como indicador de calidad del escenario
-#se establece un volumen mínimo para rentabilizar las claras. En principio 40 m3/ha, excepto para IS= 13, vol_mi = 30 m3 (da error en algunos escenarios porque no hay suficiente volumen al final)
 #Simulación de clara
 #cálculo del diámetro medio cuadrático según el modelo de incremento
 
@@ -8,51 +7,16 @@ library(zoo)
 library(ggnewscale)
 library(tidyverse)
 
+
+#modelo de incremento en área basimétrica
+load("datos/mod_inc_area_basim_indiv")
+
+#corrección del crecimiento diametral
+load("datos/correc_calidad_irreg")
+
 #volumen mínimo a extraer en cada clara
 vol_min = 40
 num_turnos <- 3
-
-#tipos de masa de inicio, según la ordnación de Aralar
-
-# tipos_masa <- data.frame(tipo_m = c("A","B", "C","D"),
-#                          Edad = c(50,30,100,70))
-
-# tipos_masa <- data.frame(tipo_m = c("B"),
-#                          Edad = c(30))
-
-#H2 IS25
-# tipos_masa <- data.frame(tipo_m = c("A","B", "C","D"),
-#                          Edad = c(50,30,100,70))
-
-#H2 IS22
-# tipos_masa <- data.frame(tipo_m = c("A","B", "C","D"),
-#                          Edad = c(65,40,120,100))
-# tipos_masa <- data.frame(tipo_m = c("A", "C","D"),
-#                          Edad = c(65,120,100))
-
-#H2 IS19
-# tipos_masa <- data.frame(tipo_m = c("A","B", "C","D"),
-#                          Edad = c(70,50,170,150))
-# tipos_masa <- data.frame(tipo_m = c("A", "C","D"),
-#                          Edad = c(65,120,100))
-
-#H2 IS16
-# tipos_masa <- data.frame(tipo_m = c("A","B", "C","D"),
-#                          Edad = c(85,60,180,160))
-tipos_masa <- data.frame(tipo_m = c("C"),
-                         Edad = c(185))
-
-#H2 IS13
-# tipos_masa <- data.frame(tipo_m = c("A","B", "C","D"),
-#                          Edad = c(95,70,185,165))
-
-#las calidades 13 y 16 dan error en el tipo B (edad = 30)
-# tipos_masa <- data.frame(tipo_m = c("A", "C","D"),
-#                          Edad = c(50,100,70))
-# tipos_masa <- data.frame(tipo_m = c("C", "D"),
-#                          Edad = c(100, 70))
-
-
 
 #datos de claras para el gráfico
 res_daso_claras <- read.csv2("datos/claras/res_daso_claras.csv")
@@ -62,11 +26,8 @@ res_daso_claras_0 <- res_daso_claras %>%
 #datos de ordenaciones para el gráfico
 dat_ordenaciones_adultas <- read.csv("resultados/dat_ordenaciones_adultas.csv")
 
-# funcion_genera_escenarios_vol_min_IRREG <- function(grupo_ = "prueba", escenario.nombre_ = "plan_comarcal_1_1_8_17_dif_dens_IS13_alta",
-#                                                     N_ini_ = 7000)
-
-funcion_genera_escenarios_vol_min_IRREG <- function(grupo_ = "go_fagus", escenario.nombre_ = "H2_IS25_alta",
-                                      N_ini_ = 10000) {
+funcion_genera_escenarios_vol_min_mod_ab <- function(grupo_ = "prueba_mod_ab", escenario.nombre_ = "H1_IS19_alta",
+                                      N_ini_ = 7510) {
 print(paste(grupo_,escenario.nombre_,N_ini_))
   
 #comprobar si existe directorio para el escenario y en caso contrario crearlo
@@ -344,15 +305,27 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
       #Dg_a_ = b0*N_a_^b1*Ho[i_]^b2
       #cálculo de Dg_a a partir del modelo de incremento
       if (class(dist_D_d[[i_-1]]) == "data.frame") {
-        newdata_ <- dist_D_d[[i_-1]] %>%
+        
+        #-----------------------------------------------------------
+        actualiza_0 <- dist_D_d[[i_-1]] %>%
+          na.omit()
+        
+        newdata_ = actualiza_0 %>%
           rename(Dn_ifn3 = d_) %>%
-          mutate (Ho_ifn3 = Ho[i_-1],
-                  ab_ifn3 = (Dg_d[i_-1])^2*pi*(N_d[i_-1])/40000,
-                  dgm_ifn3 = Dg_d[i_-1])
-        inc_ <- predict(m.Richards, newdata = newdata_)
-        d_con_inc_ <- newdata_ %>%
-          mutate(predicho = Dn_ifn3+inc_) %>%
+          mutate(ab_ = n_d*pi*(Dn_ifn3/200)^2) %>% #cálculo de ab en árboles de más diámetro (ab_may_ifn3)
+          mutate(ab_cumsum = cumsum(ab_)) %>% 
+          mutate(ab_may_ifn3 = ab_cumsum - n_d*pi*(Dn_ifn3/200)^2) %>%
+          mutate(ab_ifn3 = sum(ab_, na.rm = TRUE))
+        actualiza_1 <- actualiza_0 %>%
+          mutate(inc_ab_pred = predict(mod.Biandi_nlm, newdata = newdata_)) %>% 
+          #mutate(inc_ab_corregido = int_corr_ab + slo_corr_ab*inc_ab_pred) %>% #comentado para usar el modelo general
+          mutate(inc_ab_corregido = inc_ab_pred) %>%
+          mutate(D_act = sqrt((inc_ab_corregido+pi*(d_/2)^2)*4/pi))
+        d_con_inc_ <- actualiza_1 %>%
+          mutate(predicho = D_act) %>%
           summarise(dg_ = sqrt(sum(n_d*predicho^2)/sum(n_d)))
+        #-----------------------------------------------------------
+        
         Dg_a_ = d_con_inc_[[1]]
       } else {
         Dg_a_ = b0*N_a_^b1*Ho[i_]^b2
@@ -719,22 +692,6 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
       theme(plot.subtitle=element_text(size=40, face="italic", margin=margin(0,0,20,0)))
     
     
-    # ggplot(graf_mort_ordenaciones_claras %>% filter(is.na(origen)), aes(x=Edad, y=V_a_, col= as.factor(IS_)))+
-    #   geom_line(size = 1)+
-    #   geom_point(data=graf_mort_ordenaciones_claras %>% filter(origen == "ordenaciones"),
-    #              aes(x= Edad, y = V_a_ ), size = 2, color = "blue")+
-    #   new_scale("shape") +
-    #   geom_point(data=graf_mort_ordenaciones_claras %>% filter(origen == "claras"),
-    #              aes(x= Edad, y = V_a_, shape = trat), size = 3,  col = "red")+
-    #   ggtitle(paste0("Datos de ordenaciones. ",grupo,"/",escenario.nombre,"_IS_",IS),
-    #           subtitle = paste0("Tipo: Adultas susceptibles de claras. Evolución desde ", N_ini, " arb/ha"))+
-    #   theme_light()+
-    #   labs(x = "Edad", y = "Vcc m3/ha")+
-    #   labs(color = "Evolución según IS")+
-    #   labs(shape = "Clara. Tratamiento")+
-    #   theme(text = element_text(size = 30))
-    
-    
     ggsave(paste0(ruta_dir_escenario,"/",escenario.nombre,"_IS_",IS,"_N_ini_",N_ini,".png"), width = 677.4 , height = 364.416, units = "mm")
     
     # ggplot(graf_mort_ordenaciones_claras %>% filter(is.na(origen)), aes(x=Edad, y=G_a_, col= as.factor(IS_)))+
@@ -757,12 +714,12 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
     para_excel_solo_trat <- para_excel_res %>%
       filter(Edad %in% seq(5,500, by=5) | tratamiento %in% c("mortalidad natural", "final","clareo",tipos_claras)) %>%
       mutate(Mortalidad_natural = ifelse(tratamiento %in% c("mortalidad natural"),1,0)) %>%
-      mutate(Mortality = ifelse(V_a_== 0, 0, Mortalidad_natural*round(V_e_/V_a_,4))) %>%
+      mutate(Mortality = ifelse(V_a_== 0, 0, Mortalidad_natural*round(V_e_/V_a_,4))) %>% #es importante que el redondeo genera valores >0 para contabilizar adecuadamente la mortalidad
       mutate(Stems = ifelse(Edad %in% seq(5,500, by=5), 1, 0)) %>%
       mutate(CAI = Stems*Crec_corr_) %>%
       mutate(Thinning_Harvest = ifelse(tratamiento %in% c("final","clareo",tipos_claras),1,0)) %>%
       mutate(Fraction_removed = Thinning_Harvest*round(V_e_/V_a_,2)) %>%
-      mutate(B_hoja = 0.0167*Dg_a_^2.951*Ho_^-1.101, #Baterlink 1997
+      mutate(B_hoja = 0.0167*Dg_a_^2.951*Ho_^-1.101, #Batelink 1997
              B_fuste = exp(0.23272^2/2)*exp(-1.63732)*Dg_a_^2.21464,
              B_rama7 = exp(0.62932^2/2)*exp(-10.811)*Dg_a_^4.08961,
              B_rama2_7 = exp(0.333796^2/2)*exp(-3.86719)*Dg_a_^2.34551,
@@ -870,80 +827,6 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
     
     map(seq(1,nrow(id_variab_CO2Fix)), ~ funcion_archivos_CO2_fix(id_arch = .[1],
                                                                   para_CO2Fix_ = "para_CO2Fix"))
-    
-    ############################################################################
-    ############################################################################
-    #lanzar los escenarios de transformacion a irregular
-    gg_reg <- res %>%
-      filter(Edad %in% tipos_masa$Edad) %>%
-      select(Edad, N_a_, G_a_, V_a_) %>%
-      mutate(N_a_ = as.integer(N_a_),
-             G_a_ = round(G_a_, 2),
-             V_a_ = round(V_a_, 1)) %>%
-      mutate(escenario_transformacion = escenario.nombre) %>%
-      left_join(tipos_masa) %>%
-      rowwise() %>%
-      mutate(inicio_reg = list(c(escenario_transformacion,N_a_,G_a_,Edad,V_a_,tipo_m))) %>%
-      ungroup()
-    
-    # gg_reg <- res %>%
-    #   filter(Edad %in% c(30,50,70,100)) %>%
-    #   select(Edad, N_a_, G_a_) %>%
-    #   mutate(N_a_ = as.integer(N_a_),
-    #          G_a_ = round(G_a_, 2)) %>%
-    #   mutate(escenario_transformacion = escenario.nombre) %>%
-    #   rowwise() %>%
-    #   mutate(inicio_reg = list(c(escenario_transformacion,N_a_,G_a_,Edad))) %>%
-    #   ungroup()
-    
-    #Denominación del grupo
-    grupo_transformacion = "transformacion" #"transformacion"
-    
-    #datos de inicio del monte regular, según la ordenación de Aralar
-    #inicio_monte_regular_aralar <- read.csv2("datos/escenarios/aralar/inicio_monte_regular_aralar.csv")
-    #inicio_monte_regular_aralar <- read.csv2("datos/escenarios/aralar/corto_inicio_monte_regular_aralar.csv") # sólo 6 escenarios
-    # inicio_monte_regular_aralar <- read.csv2("datos/escenarios/prueba/prueb_transf.csv") # sólo 1 escenario
-    # inicio_monte_regular_aralar_0 <- inicio_monte_regular_aralar %>%
-    #   mutate(Edad_3 = round((Edad_1+Edad_2)/20)*10) %>%
-    #   pivot_longer(cols = starts_with("Edad"), names_to = "clase_Edad", values_to = "Edad_reg") %>%
-    #   filter(Edad_reg > 0) %>% #no tiene sentido contar con G y N >0 para Edad =0
-    #   rowwise() %>%
-    #   mutate(inicio_reg = list(c(escenario_Aralar,N,G, Edad_reg))) %>%
-    #   ungroup()
-    
-    #Índice de sitio, se asimilan las calidades mala, media, buena... a las de montes regulares
-    #IS_ = c(25) #c(13,16,19,22,25)
-    
-    #área basimétrica objetivo
-    ab_objetivo_ = c(30) # c(15,20,25)
-    precis_ab = 0.05 #margen para el ab_objetivo
-    
-    #rango de diámetros
-    diam_max_ = c(60) #seq(60.5,100.5, by =5) #seq(60.5,100.5, by =20)
-    diam_min_ = 7.5 #inicialmente se partía de 7,5 pero en la función de Weibull se llega entre 4 y 5 para las primeras edades modelizadas
-    
-    #peso de la intervención, tanto por uno en área basimétrica
-    peso_G_ = c(0.2) #c(0.20, 0.225, 0.25)
-    #años entre intervenciones, rotación
-    rota_ = c(10) #c(5,7,10)
-    
-    #data frame de condiciones de escenario para transformacion a monte irregular
-    gg_ <- expand.grid(inicio_reg = gg_reg$inicio_reg,
-                      IS = IS,
-                      ab_objetivo = ab_objetivo_,
-                      peso_G = peso_G_,
-                      diam_max = diam_max_,
-                      diam_min = diam_min_,
-                      rotacion = rota_)
-    #lanzar función para pasar a irregular
-    # map(seq(1,nrow(gg_)), ~ funcion_genera_escenarios_transformacion_desde_REG(escenario = .[1],  grupo = grupo_transformacion,
-    #                                                                            gg = gg_, para_excel_solo_trat_reg = para_excel_solo_trat))
-    
-    
-    map(seq(1,nrow(gg_)), ~ funcion_genera_escenarios_transformacion_desde_REG_unidos_(escenario = .[1],  grupo = grupo_transformacion,
-                                                                                gg = gg_, para_excel_solo_trat_reg = para_excel_solo_trat, res_reg = res))
-    
-    
     #Resumen del escenario
     retorno <- data.frame(grupo = grupo, escenario = escenario.nombre,
                           N_ini = N_ini, IS = IS, Rotacion = edad_fin,

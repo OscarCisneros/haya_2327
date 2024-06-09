@@ -1,72 +1,16 @@
 #función para generar los escenarios en xls para CO2Fix y obtener la suma de Crecimiento corriente anual como indicador de calidad del escenario
-#se establece un volumen mínimo para rentabilizar las claras. En principio 40 m3/ha, excepto para IS= 13, vol_mi = 30 m3 (da error en algunos escenarios porque no hay suficiente volumen al final)
 #Simulación de clara
 #cálculo del diámetro medio cuadrático según el modelo de incremento
 
-library(openxlsx)
 library(zoo)
-library(ggnewscale)
 library(tidyverse)
+library(ParBayesianOptimization)
 
 #volumen mínimo a extraer en cada clara
 vol_min = 40
-num_turnos <- 3
 
-#tipos de masa de inicio, según la ordnación de Aralar
-
-# tipos_masa <- data.frame(tipo_m = c("A","B", "C","D"),
-#                          Edad = c(50,30,100,70))
-
-# tipos_masa <- data.frame(tipo_m = c("B"),
-#                          Edad = c(30))
-
-#H2 IS25
-# tipos_masa <- data.frame(tipo_m = c("A","B", "C","D"),
-#                          Edad = c(50,30,100,70))
-
-#H2 IS22
-# tipos_masa <- data.frame(tipo_m = c("A","B", "C","D"),
-#                          Edad = c(65,40,120,100))
-# tipos_masa <- data.frame(tipo_m = c("A", "C","D"),
-#                          Edad = c(65,120,100))
-
-#H2 IS19
-# tipos_masa <- data.frame(tipo_m = c("A","B", "C","D"),
-#                          Edad = c(70,50,170,150))
-# tipos_masa <- data.frame(tipo_m = c("A", "C","D"),
-#                          Edad = c(65,120,100))
-
-#H2 IS16
-# tipos_masa <- data.frame(tipo_m = c("A","B", "C","D"),
-#                          Edad = c(85,60,180,160))
-tipos_masa <- data.frame(tipo_m = c("C"),
-                         Edad = c(185))
-
-#H2 IS13
-# tipos_masa <- data.frame(tipo_m = c("A","B", "C","D"),
-#                          Edad = c(95,70,185,165))
-
-#las calidades 13 y 16 dan error en el tipo B (edad = 30)
-# tipos_masa <- data.frame(tipo_m = c("A", "C","D"),
-#                          Edad = c(50,100,70))
-# tipos_masa <- data.frame(tipo_m = c("C", "D"),
-#                          Edad = c(100, 70))
-
-
-
-#datos de claras para el gráfico
-res_daso_claras <- read.csv2("datos/claras/res_daso_claras.csv")
-res_daso_claras_0 <- res_daso_claras %>%
-  pivot_wider(names_from = "var", values_from = "valor")
-
-#datos de ordenaciones para el gráfico
-dat_ordenaciones_adultas <- read.csv("resultados/dat_ordenaciones_adultas.csv")
-
-# funcion_genera_escenarios_vol_min_IRREG <- function(grupo_ = "prueba", escenario.nombre_ = "plan_comarcal_1_1_8_17_dif_dens_IS13_alta",
-#                                                     N_ini_ = 7000)
-
-funcion_genera_escenarios_vol_min_IRREG <- function(grupo_ = "go_fagus", escenario.nombre_ = "H2_IS25_alta",
-                                      N_ini_ = 10000) {
+funcion_resumen_escenario_ <- function(grupo_ = "opt_go_fagus", escenario.nombre_ = "H5_IS19_alta",
+                                      N_ini_ = 7510, perc_int = 0.1) {
 print(paste(grupo_,escenario.nombre_,N_ini_))
   
 #comprobar si existe directorio para el escenario y en caso contrario crearlo
@@ -95,21 +39,25 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
     escenario.nombre <- escenario.nombre_
     grupo <- grupo_ #"go_fagus" "selv_macizo_pirenaico"
     
-    escenario.tratamiento_0 <- read.csv2(paste0("datos/escenarios/",grupo,"/",escenario.nombre, ".csv"), sep = ";")
-    
-    
-    # densidad inicial
-    N_ini = as.numeric(N_ini_)
-
-    
-    # rango de edades
-    edad_ini <- 1
-    edad_fin <- max(escenario.tratamiento_0$edad)
     
     #Denominación de las claras tratadas con la función de claras mixtas
     tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria",
                       "aclaratoria 1", "aclaratoria","clara selectiva",
                       "corta preparatoria","corta diseminatoria","entresaca")
+    
+    #cargar esquema selvícola
+    escenario.tratamiento_00 <- read.csv2(paste0("datos/escenarios/",grupo,"/",escenario.nombre, ".csv"), sep = ";")
+    
+    #cambiar la intensidad de las intervenciones según el parámetro "perc_int"
+    escenario.tratamiento_0 <- escenario.tratamiento_00 %>%
+      mutate(codigo = ifelse(tratamiento %in% c(tipos_claras, "clareo"), codigo*(1+perc_int), codigo))
+    
+    # densidad inicial
+    N_ini = as.numeric(N_ini_)
+
+    # rango de edades
+    edad_ini <- 1
+    edad_fin <- max(escenario.tratamiento_0$edad)
     
     #modelo de incremento individual
     load("datos/mod_inc_diam_individual")
@@ -667,290 +615,60 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
     
     res[is.na(res)] <- 0
     
-    
-    #extender el número de turnos reflejados
-    #se repiten todos los datos excepto la edad, que incrementa
-   
-    if (num_turnos > 1) {
-      res_extendido <- res
-      for(i in seq(1,num_turnos-1)) {
-        res_extendido <- res_extendido %>%
-          bind_rows(res_extendido %>% mutate(Edad = Edad+max(res_extendido$Edad)))
-      }
-      res <- res_extendido
-    }
-    
-    
+    #seleccionar variables de interés
     nombres_exc <- c("IS_", "Edad", "Ho_", "N_a_" , "Dg_a_", "G_a_", "V_a_", "Vi_a_", "H_D_a_", "IH_a_",
                      "N_e_", "Dg_e", "G_e_", "IH_e_", "V_e_",
                      "N_d_", "Dg_d_", "G_d_", "V_d_", "H_D_d_", "IH_d_",
                      "Crec_Vt_", "Crec_medio_", "Crec_corr_",
                      "tratamiento")
-    para_excel_res <- res[nombres_exc] %>%
-      mutate(across(is.numeric, round, digits=1))
+    para_excel_res <- res[nombres_exc] 
     
-    write.xlsx(para_excel_res, paste0(ruta_dir_escenario,"/",escenario.nombre,"_IS_",IS,"_",N_ini_,".xlsx"))
-    
-    #gráfica de comparación con las ordenaciones
-    #gráficos con ordenaciones y claras
+    #variables a optimizar: promedio del volumen antes de clara
+    return(mean(para_excel_res$V_a_))
     
     
-    graf_mort_ordenaciones_claras <- para_excel_res %>%
-      bind_rows(dat_ordenaciones_adultas %>% mutate(origen = "ordenaciones")) %>%
-      bind_rows(res_daso_claras_0  %>% mutate(origen = "claras"))
-    
-    ggplot(graf_mort_ordenaciones_claras %>% filter(is.na(origen)), aes(x=Edad, y=V_a_, col= as.factor(IS_)))+
-      geom_line(size = 4, color = "darkorange")+
-      geom_point(data=graf_mort_ordenaciones_claras %>% filter(origen == "ordenaciones"),
-                 aes(x= Edad, y = V_a_ ), size = 2, color = "blue")+
-      new_scale("shape") +
-      geom_point(data=graf_mort_ordenaciones_claras %>% filter(origen == "claras"),
-                 aes(x= Edad, y = V_a_, shape = trat), size = 8,  col = "red")+
-      ggtitle(paste(paste0("Grupo: ",grupo),  paste0("Escenario: ",escenario.nombre), sep="\n"),
-              subtitle = paste0("Línea: Evolución de Vcc m3/ha. Puntos azules: Datos de ordenaciones. Inicio: ", N_ini, " arb/ha"))+
-      theme_light()+
-      labs(x = "Edad", y = "Vcc m3/ha")+
-      labs(color = "Evolución según IS")+
-      labs(shape = "Clara. Tratamiento")+
-      theme(text = element_text(size = 40))+
-      theme(axis.title.y = element_text(size=50, margin = margin(t = 0, r = 20, b = 0, l = 0))) +
-      theme(axis.title.x = element_text(size=50, margin = margin(t = 20, r = 0, b = 0, l = 0))) +
-      theme(plot.title = element_text(size=60, family = "sans", margin=margin(0,0,30,0)))+
-      theme(plot.subtitle=element_text(size=40, face="italic", margin=margin(0,0,20,0)))
-    
-    
-    # ggplot(graf_mort_ordenaciones_claras %>% filter(is.na(origen)), aes(x=Edad, y=V_a_, col= as.factor(IS_)))+
-    #   geom_line(size = 1)+
-    #   geom_point(data=graf_mort_ordenaciones_claras %>% filter(origen == "ordenaciones"),
-    #              aes(x= Edad, y = V_a_ ), size = 2, color = "blue")+
-    #   new_scale("shape") +
-    #   geom_point(data=graf_mort_ordenaciones_claras %>% filter(origen == "claras"),
-    #              aes(x= Edad, y = V_a_, shape = trat), size = 3,  col = "red")+
-    #   ggtitle(paste0("Datos de ordenaciones. ",grupo,"/",escenario.nombre,"_IS_",IS),
-    #           subtitle = paste0("Tipo: Adultas susceptibles de claras. Evolución desde ", N_ini, " arb/ha"))+
-    #   theme_light()+
-    #   labs(x = "Edad", y = "Vcc m3/ha")+
-    #   labs(color = "Evolución según IS")+
-    #   labs(shape = "Clara. Tratamiento")+
-    #   theme(text = element_text(size = 30))
-    
-    
-    ggsave(paste0(ruta_dir_escenario,"/",escenario.nombre,"_IS_",IS,"_N_ini_",N_ini,".png"), width = 677.4 , height = 364.416, units = "mm")
-    
-    # ggplot(graf_mort_ordenaciones_claras %>% filter(is.na(origen)), aes(x=Edad, y=G_a_, col= as.factor(IS_)))+
-    #   geom_line(size = 1)+
-    #   geom_point(data=graf_mort_ordenaciones_claras %>% filter(origen == "ordenaciones"),
-    #              aes(x= Edad, y = G_a_ ), size = 2, color = "blue")+
-    #   new_scale("shape") +
-    #   geom_point(data=graf_mort_ordenaciones_claras %>% filter(origen == "claras"),
-    #              aes(x= Edad, y = G_a_, shape = trat), size = 3,  col = "red")+
-    #   ggtitle("Datos de ordenaciones", subtitle = "Tipo: Adultas susceptibles de claras. Evolución desde 3000 arb/ha")+
-    #   #scale_x_continuous(breaks = seq(0, 120, by = 5))+
-    #   theme_light()+
-    #   labs(x = "Edad", y = "AB m2/ha")+
-    #   labs(color = "Evolución según IS")+
-    #   labs(shape = "Clara. Tratamiento")+
-    #   theme(text = element_text(size = 15)) 
-    # 
-    
-    
-    para_excel_solo_trat <- para_excel_res %>%
-      filter(Edad %in% seq(5,500, by=5) | tratamiento %in% c("mortalidad natural", "final","clareo",tipos_claras)) %>%
-      mutate(Mortalidad_natural = ifelse(tratamiento %in% c("mortalidad natural"),1,0)) %>%
-      mutate(Mortality = ifelse(V_a_== 0, 0, Mortalidad_natural*round(V_e_/V_a_,4))) %>%
-      mutate(Stems = ifelse(Edad %in% seq(5,500, by=5), 1, 0)) %>%
-      mutate(CAI = Stems*Crec_corr_) %>%
-      mutate(Thinning_Harvest = ifelse(tratamiento %in% c("final","clareo",tipos_claras),1,0)) %>%
-      mutate(Fraction_removed = Thinning_Harvest*round(V_e_/V_a_,2)) %>%
-      mutate(B_hoja = 0.0167*Dg_a_^2.951*Ho_^-1.101, #Baterlink 1997
-             B_fuste = exp(0.23272^2/2)*exp(-1.63732)*Dg_a_^2.21464,
-             B_rama7 = exp(0.62932^2/2)*exp(-10.811)*Dg_a_^4.08961,
-             B_rama2_7 = exp(0.333796^2/2)*exp(-3.86719)*Dg_a_^2.34551,
-             B_rama2 = exp(0.425041^2/2)*exp(-2.57396)*Dg_a_^1.84345,
-             # B_raiz_1 = exp(0.459735^2/2)*exp(-1.72224)*Dg_a_^1.25755, #la del manual, no parece correcta
-             B_raiz = 0.106*Dg_a_^2 #de la tesis de Ricardo
-      ) %>%
-      mutate(B_rama = B_rama7+B_rama2_7+B_rama2) %>%
-      mutate(Rel_growth_foliage = round(B_hoja/B_fuste,3),
-             Rel_growth_branches = round(B_rama/B_fuste,3),
-             Rel_growth_roots = round(B_raiz/B_fuste,3)) %>%
-      mutate(v_carp_1 = V_e_/(1+exp(5.77198-0.05681*G_a_)), #volumen de carpintería
-             v_carp_2 = V_e_/(1+exp(5.2144536-0.0015091*N_a_-0.0855058*Dg_a_+0.0376535*Ho_)),
-             v_carp_3 = V_e_/(1+exp(2.0558913+0.0712104*Ho_-0.0003358*Dg_a_^2-0.0233621*G_a_)),
-             v_carp_4 = V_e_/(1+exp(2.1768173+0.0020481*N_a_-0.0452115*G_a_+0.0579457*Ho_))) %>%
-      mutate(V_carp = v_carp_1+v_carp_2+v_carp_3+v_carp_4) %>%
-      mutate(V_carp = ifelse(V_carp >= V_e_, V_e_, V_carp)) %>%
-      mutate(V_carp = ifelse(Dg_a_ >= 20, V_carp, 0)) %>% #sólo se considera para sierra por encima de 20 cm
-      mutate(Stems_log_wood = 0.75) %>% #clasificaciones válidas MEF/UNE (manual Gofagus, pp. 121)
-      mutate(Stems_pulp_pap = 1-Stems_log_wood) %>%
-      # mutate(Stems_log_wood = ifelse(V_carp == 0, 0,round(V_carp/V_e_,3))) %>%
-      # mutate(Stems_pulp_pap = 1-Stems_log_wood) %>%
-      left_join(escenario.tratamiento_0 %>% rename(Edad = edad))
-    
-    write.xlsx(para_excel_solo_trat, paste0(ruta_dir_escenario,"/",escenario.nombre,"_IS_",IS,"_",N_ini_,"_resumido.xlsx"))
-    
-    #resumen para CO2Fix
-    para_CO2Fix <- para_excel_solo_trat %>%
-       select(Edad,Ho_,N_a_,Dg_a_,tratamiento,Stems,CAI, Rel_growth_foliage, Rel_growth_branches, Rel_growth_roots,
-             Mortalidad_natural, Mortality,
-             Thinning_Harvest,Fraction_removed,Stems_log_wood, Stems_pulp_pap) 
-    write.xlsx(para_CO2Fix, paste0(ruta_dir_escenario,"/",escenario.nombre,"_IS_",IS,"_",N_ini_,"_CO2Fix.xlsx"))
-    
-    #piezas del archivo de CO2Fix
-    #-------------------------------------------------------------------------------
-    load("datos/escrib_CO2fix/encabezamientos/encabezados_CO2Fix")
-    id_arch_ <- c("# stems", "# foliage", "# branches", "# roots", "# mortality table", "# thinning and harvest table" )
-    id_co2fix <- c("CAI", "Rel_growth_foliage","Rel_growth_branches","Rel_growth_roots", "Mortality", "Thinning_harvest") 
-    id_variab_CO2Fix <- data.frame(id_arch_ = id_arch_, id_co2fix = id_co2fix)
-    funcion_archivos_CO2_fix <- function(id_arch = 6, para_CO2Fix_ = "para_CO2Fix") {
-      etiqueta_ = id_variab_CO2Fix$id_arch_[id_arch]
-      columna_ = id_variab_CO2Fix$id_co2fix[id_arch]
-      res_CO2Fix = get(para_CO2Fix_)
-      
-      if(etiqueta_ == "# thinning and harvest table") {
-        arch_etiqueta <- res_CO2Fix %>%
-          filter(Thinning_Harvest==1) %>%
-          mutate(columna_texto = paste0("\t\t\t\t\t",Edad,"\t",
-                                        Fraction_removed,"\t",Stems_log_wood,"\t",Stems_pulp_pap,"\t0\t0\t0.0\t0.0\t0\t0")) %>%
-          select(columna_texto) %>%
-          mutate(etiqueta = etiqueta_)
-        
-        assign(paste0("archiv_",etiqueta_), encabezados_CO2Fix)
-        
-        arch_CO2 <- encabezados_CO2Fix %>%
-          filter(etiqueta == etiqueta_) %>%
-          bind_rows(arch_etiqueta)
-        
-        #assign(paste0("archiv_",etiqueta_), arch_CO2, envir = .GlobalEnv)
-        write.csv(arch_CO2, paste0(ruta_dir_escenario,"/","archiv_",etiqueta_,".csv"))
-      }
-      
-      else if(etiqueta_ == "# mortality table") {
-        arch_etiqueta <- res_CO2Fix %>%
-          filter(Mortalidad_natural==1) %>%
-          mutate(Mortality = 0) %>% #para evitar que CO2Fix interpole erróneamente la mortalidad entre turnos
-          mutate(columna_texto = paste0("\t\t\t\t\t",Edad,"\t",Mortality)) %>%
-          select(columna_texto) %>%
-          mutate(etiqueta = etiqueta_)
-        
-        # arch_etiqueta <- res_CO2Fix %>%
-        #   filter(Mortalidad_natural==1) %>%
-        #   mutate(columna_texto = paste0("\t\t\t\t\t",Edad,"\t",Mortality)) %>%
-        #   select(columna_texto) %>%
-        #   mutate(etiqueta = etiqueta_)
-        
-        assign(paste0("archiv_",etiqueta_), encabezados_CO2Fix)
-        
-        arch_CO2 <- encabezados_CO2Fix %>%
-          filter(etiqueta == etiqueta_) %>%
-          bind_rows(arch_etiqueta)
-        
-        #assign(paste0("archiv_",etiqueta_), arch_CO2, envir = .GlobalEnv)
-        write.csv(arch_CO2, paste0(ruta_dir_escenario,"/","archiv_",etiqueta_,".csv"))
-      }
-      
-      else {
-        arch_etiqueta <- res_CO2Fix %>%
-          filter(Stems==1) %>%
-          mutate(columna_texto = paste0("\t\t\t\t\t",Edad,"\t",get(columna_))) %>%
-          select(columna_texto) %>%
-          mutate(etiqueta = etiqueta_)
-        
-        assign(paste0("archiv_",etiqueta_), encabezados_CO2Fix)
-        
-        arch_CO2 <- encabezados_CO2Fix %>%
-          filter(etiqueta == etiqueta_) %>%
-          bind_rows(arch_etiqueta)
-        
-        #assign(paste0("archiv_",etiqueta_), arch_CO2, envir = .GlobalEnv)
-        write.csv(arch_CO2, paste0(ruta_dir_escenario,"/","archiv_",etiqueta_,".csv"))
-      }
-      
-    }
-    
-    map(seq(1,nrow(id_variab_CO2Fix)), ~ funcion_archivos_CO2_fix(id_arch = .[1],
-                                                                  para_CO2Fix_ = "para_CO2Fix"))
-    
-    ############################################################################
-    ############################################################################
-    #lanzar los escenarios de transformacion a irregular
-    gg_reg <- res %>%
-      filter(Edad %in% tipos_masa$Edad) %>%
-      select(Edad, N_a_, G_a_, V_a_) %>%
-      mutate(N_a_ = as.integer(N_a_),
-             G_a_ = round(G_a_, 2),
-             V_a_ = round(V_a_, 1)) %>%
-      mutate(escenario_transformacion = escenario.nombre) %>%
-      left_join(tipos_masa) %>%
-      rowwise() %>%
-      mutate(inicio_reg = list(c(escenario_transformacion,N_a_,G_a_,Edad,V_a_,tipo_m))) %>%
-      ungroup()
-    
-    # gg_reg <- res %>%
-    #   filter(Edad %in% c(30,50,70,100)) %>%
-    #   select(Edad, N_a_, G_a_) %>%
-    #   mutate(N_a_ = as.integer(N_a_),
-    #          G_a_ = round(G_a_, 2)) %>%
-    #   mutate(escenario_transformacion = escenario.nombre) %>%
-    #   rowwise() %>%
-    #   mutate(inicio_reg = list(c(escenario_transformacion,N_a_,G_a_,Edad))) %>%
-    #   ungroup()
-    
-    #Denominación del grupo
-    grupo_transformacion = "transformacion" #"transformacion"
-    
-    #datos de inicio del monte regular, según la ordenación de Aralar
-    #inicio_monte_regular_aralar <- read.csv2("datos/escenarios/aralar/inicio_monte_regular_aralar.csv")
-    #inicio_monte_regular_aralar <- read.csv2("datos/escenarios/aralar/corto_inicio_monte_regular_aralar.csv") # sólo 6 escenarios
-    # inicio_monte_regular_aralar <- read.csv2("datos/escenarios/prueba/prueb_transf.csv") # sólo 1 escenario
-    # inicio_monte_regular_aralar_0 <- inicio_monte_regular_aralar %>%
-    #   mutate(Edad_3 = round((Edad_1+Edad_2)/20)*10) %>%
-    #   pivot_longer(cols = starts_with("Edad"), names_to = "clase_Edad", values_to = "Edad_reg") %>%
-    #   filter(Edad_reg > 0) %>% #no tiene sentido contar con G y N >0 para Edad =0
-    #   rowwise() %>%
-    #   mutate(inicio_reg = list(c(escenario_Aralar,N,G, Edad_reg))) %>%
-    #   ungroup()
-    
-    #Índice de sitio, se asimilan las calidades mala, media, buena... a las de montes regulares
-    #IS_ = c(25) #c(13,16,19,22,25)
-    
-    #área basimétrica objetivo
-    ab_objetivo_ = c(30) # c(15,20,25)
-    precis_ab = 0.05 #margen para el ab_objetivo
-    
-    #rango de diámetros
-    diam_max_ = c(60) #seq(60.5,100.5, by =5) #seq(60.5,100.5, by =20)
-    diam_min_ = 7.5 #inicialmente se partía de 7,5 pero en la función de Weibull se llega entre 4 y 5 para las primeras edades modelizadas
-    
-    #peso de la intervención, tanto por uno en área basimétrica
-    peso_G_ = c(0.2) #c(0.20, 0.225, 0.25)
-    #años entre intervenciones, rotación
-    rota_ = c(10) #c(5,7,10)
-    
-    #data frame de condiciones de escenario para transformacion a monte irregular
-    gg_ <- expand.grid(inicio_reg = gg_reg$inicio_reg,
-                      IS = IS,
-                      ab_objetivo = ab_objetivo_,
-                      peso_G = peso_G_,
-                      diam_max = diam_max_,
-                      diam_min = diam_min_,
-                      rotacion = rota_)
-    #lanzar función para pasar a irregular
-    # map(seq(1,nrow(gg_)), ~ funcion_genera_escenarios_transformacion_desde_REG(escenario = .[1],  grupo = grupo_transformacion,
-    #                                                                            gg = gg_, para_excel_solo_trat_reg = para_excel_solo_trat))
-    
-    
-    map(seq(1,nrow(gg_)), ~ funcion_genera_escenarios_transformacion_desde_REG_unidos_(escenario = .[1],  grupo = grupo_transformacion,
-                                                                                gg = gg_, para_excel_solo_trat_reg = para_excel_solo_trat, res_reg = res))
-    
-    
-    #Resumen del escenario
-    retorno <- data.frame(grupo = grupo, escenario = escenario.nombre,
-                          N_ini = N_ini, IS = IS, Rotacion = edad_fin,
-                          Suma_Crec_corriente = round(sum(res$Crec_corr,na.rm = TRUE),0),
-                          Suma_Vol_extraido = round(sum(para_excel_solo_trat$V_e_, na.rm = TRUE),0),
-                          Suma_Vol_carpinteria = round(sum(para_excel_solo_trat$V_carp),0))
-
 }
 
 
+med_vol_escenario <- funcion_resumen_escenario_(grupo_ = "opt_PC", escenario.nombre_ = "PC1_IS19_alta",
+                                      N_ini_ = 10000, perc_int = 1.5) 
+# med_vol_escenario <- funcion_resumen_escenario_(grupo_ = "opt_go_fagus", escenario.nombre_ = "H5_IS19_alta",
+#                                                 N_ini_ = 7510, perc_int = 0.1) 
+
+#Ajuste de hiperparámetros
+
+# for reproducibility
+set.seed(123)
+
+scoringFunction <- function(perc_int) {
+  
+  med_vol_escenario <- funcion_resumen_escenario_(grupo_ = "opt_PC", escenario.nombre_ = "PC1_IS19_alta",
+                                                  N_ini_ = 7510, perc_int = perc_int) 
+   return(list(Score = min(abs(217-med_vol_escenario)))
+  )
+}
+
+#definir límites de la búsqueda
+bounds <- list( 
+  perc_int = c(0.9,1.2)
+  )
+
+#optimización
+
+initGrid_ <- data.frame(  perc_int = c(0.9,1,1.1,1.2))
+#initGrid_ <- data.frame(  perc_int = c(-0.2,-0.1,0,0.1,0.2))
+
+tNoPar <- system.time(
+  optObj <- bayesOpt(
+    FUN = scoringFunction
+    , bounds = bounds
+    , initGrid = initGrid_
+    #, initPoints = 6
+    , iters.n = 20
+    , iters.k = 1
+  )
+)
+
+
+#resultados
+optObj$scoreSummary      

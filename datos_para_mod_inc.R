@@ -76,7 +76,7 @@ dat_inc <- PCMayores_Ifn4_3_haya_compara %>%
   mutate(inc_an = inc_diam/anno) %>%
   filter(inc_diam > 0)
 
-
+save(dat_inc, file = "datos/dat_inc")
 
 #prueba inc anual
 library(tidyverse)

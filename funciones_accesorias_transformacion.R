@@ -61,6 +61,10 @@ func_expande_Weibull_irreg <- function ( N_a_, G_a_) {
   newdata_ = data.frame(Dg = Dg_)
   a = as.numeric(predict(lm.diam_min_reg, newdata = newdata_))
   a = round(a/0.5)*0.5 #para empezar en el rango inferior de una clase de 1 cm
+  #se asume que el diámetro mínimo para monte irregularl es 7.5 cm
+  if (a < 7.5) {
+    a = 7.5
+  }
   
   # parámetro c
   func = function(x){
@@ -291,7 +295,8 @@ funcion_increm_anual <- function(i) {
   
   actualiza_1 <- actualiza_0 %>%
     mutate(inc_ab_pred = predict(mod.Biandi_nlm, newdata = newdata_)) %>% 
-    mutate(inc_ab_corregido = int_corr_ab + slo_corr_ab*inc_ab_pred) %>%
+    mutate(inc_ab_corregido = int_corr_ab + slo_corr_ab*inc_ab_pred) %>% #corrección
+    #mutate(inc_ab_corregido = int_corr_ab + inc_ab_pred) %>% 
     mutate(D_act = sqrt((inc_ab_corregido+pi*(d_/2)^2)*4/pi))
   
   df_ <- actualiza_1 %>%

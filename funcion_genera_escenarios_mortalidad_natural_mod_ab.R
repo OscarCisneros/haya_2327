@@ -8,6 +8,13 @@ library(zoo)
 library(ggnewscale)
 library(tidyverse)
 
+#modelo de incremento en área basimétrica
+load("datos/mod_inc_area_basim_indiv")
+
+#corrección del crecimiento diametral
+load("datos/correc_calidad_irreg")
+
+
 #volumen mínimo a extraer en cada clara
 vol_min = 40
 num_turnos <- 1
@@ -26,7 +33,7 @@ lista_escenario.nombre_ <- c("mortalidad_IS25_alta",
                              "mortalidad_IS16_alta",
                              "mortalidad_IS13_alta")
 #grupo_ = "mortalidad_natural"
-funcion_genera_escenarios_mortalidad <- function(grupo_ = "prueba", escenario.nombre_ = "mortalidad_natural_IS22_alta", edad_turno_ = 500,
+funcion_genera_escenarios_mortalidad_mod_ab <- function(grupo_ = "prueba", escenario.nombre_ = "mortalidad_natural_IS22_alta", edad_turno_ = 500,
                                               N_ini_ = 5469) {
   print(paste(grupo_,escenario.nombre_,N_ini_))
   
@@ -303,15 +310,27 @@ funcion_genera_escenarios_mortalidad <- function(grupo_ = "prueba", escenario.no
     #Dg_a_ = b0*N_a_^b1*Ho[i_]^b2
     #cálculo de Dg_a a partir del modelo de incremento
     if (class(dist_D_d[[i_-1]]) == "data.frame") {
-      newdata_ <- dist_D_d[[i_-1]] %>%
+     
+      #-----------------------------------------------------------
+      actualiza_0 <- dist_D_d[[i_-1]] %>%
+        na.omit()
+      
+      newdata_ = actualiza_0 %>%
         rename(Dn_ifn3 = d_) %>%
-        mutate (Ho_ifn3 = Ho[i_-1],
-                ab_ifn3 = (Dg_d[i_-1])^2*pi*(N_d[i_-1])/40000,
-                dgm_ifn3 = Dg_d[i_-1])
-      inc_ <- predict(m.Richards, newdata = newdata_)
-      d_con_inc_ <- newdata_ %>%
-        mutate(predicho = Dn_ifn3+inc_) %>%
+        mutate(ab_ = n_d*pi*(Dn_ifn3/200)^2) %>% #cálculo de ab en árboles de más diámetro (ab_may_ifn3)
+        mutate(ab_cumsum = cumsum(ab_)) %>% 
+        mutate(ab_may_ifn3 = ab_cumsum - n_d*pi*(Dn_ifn3/200)^2) %>%
+        mutate(ab_ifn3 = sum(ab_, na.rm = TRUE))
+      actualiza_1 <- actualiza_0 %>%
+        mutate(inc_ab_pred = predict(mod.Biandi_nlm, newdata = newdata_)) %>% 
+        mutate(inc_ab_corregido = int_corr_ab + slo_corr_ab*inc_ab_pred) %>%
+        mutate(D_act = sqrt((inc_ab_corregido+pi*(d_/2)^2)*4/pi))
+      d_con_inc_ <- actualiza_1 %>%
+        mutate(predicho = D_act) %>%
         summarise(dg_ = sqrt(sum(n_d*predicho^2)/sum(n_d)))
+      #-----------------------------------------------------------
+      
+    
       Dg_a_ = d_con_inc_[[1]]
     } else {
       Dg_a_ = b0*N_a_^b1*Ho[i_]^b2

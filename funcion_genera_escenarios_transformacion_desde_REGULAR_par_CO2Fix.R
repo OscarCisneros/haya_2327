@@ -348,13 +348,16 @@ print(paste0("escenario nº: ",escenario))
         mutate(Tiempo = tiempo+Edad_reg-1) %>% #se pasa el tiempo a la edad a la que se inicia la transformación, para comparar en CO2Fix
         filter(Tiempo %in% seq(5,500, by=5) | tratamiento %in% c("final","clareo",tipos_claras)) %>%
         mutate(Mortalidad_natural = ifelse(tratamiento %in% c("mortalidad natural"),1,0)) %>%
-        mutate(Mortality = ifelse(V_a_== 0, 0, Mortalidad_natural*round(V_e_/V_a_,2))) %>%
+        mutate(Mortality = ifelse(V_a_== 0, 0, Mortalidad_natural*round(V_e_/V_a_,4))) %>%
         mutate(Stems = ifelse(Tiempo %in% seq(5,500, by=5), 1, 0)) %>%
         mutate(CAI = Stems*Crec_corr_) %>%
         mutate(Thinning_Harvest = ifelse(tratamiento %in% c("final","clareo",tipos_claras),1,0)) %>%
         mutate(Fraction_removed = Thinning_Harvest*round(V_e_/V_a_,2)) %>%
-        mutate(Stems_log_wood = ifelse(V_carp_ == 0, 0,round(V_carp_/V_e_,3))) %>%
-        mutate(Stems_pulp_pap = 1-Stems_log_wood) 
+        mutate(Stems_log_wood = 0.75) %>% #clasificaciones válidas MEF/UNE (manual Gofagus, pp. 121)
+        mutate(Stems_pulp_pap = 1-Stems_log_wood)
+        # mutate(Stems_log_wood = ifelse(V_carp_ == 0, 0,round(V_carp_/V_e_,3))) %>%
+        
+       
       
       #se genera el dataframe que resume la evolución, uniendo la parte de crecimiento en monte regular con la 
       #correspondiente en monte irregular, para compararlo con el de monte regular en CO2Fix como línea base

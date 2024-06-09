@@ -133,7 +133,8 @@ print(paste0("escenario nº: ",escenario))
   N_reg <- as.numeric(gg[escenario, "inicio_reg"][[1]][2])
   G_reg <- as.numeric(gg[escenario, "inicio_reg"][[1]][3])
   Edad_reg <- as.numeric(gg[escenario, "inicio_reg"][[1]][4])
-  Tipo_masa <- gg[escenario, "inicio_reg"][[1]][5]
+  V_reg <- as.numeric(gg[escenario, "inicio_reg"][[1]][5])
+  Tipo_masa <- gg[escenario, "inicio_reg"][[1]][6]
   
   #área basimétrica objetivo
   ab_objetivo <- gg[escenario, "ab_objetivo"]
@@ -144,13 +145,14 @@ print(paste0("escenario nº: ",escenario))
   rota <-  gg[escenario, "rotacion"]
   #rango de diámetros
   diam_max <- gg[escenario, "diam_max"]
-  diam_min = 7.5
+  diam_min = gg[escenario, "diam_min"]
   
   #nombre del escenario del monte Regular inicial
   escen_Regular <-  as.character(gg[escenario, "inicio_reg"][[1]][1])
   
   #carpeta de escenarios
-  escenario.nombre = paste0(escen_Regular,"_",Tipo_masa,"_E_",Edad_reg,"_N_",N_reg,"_IS_",IS, "_DMX_",as.character(diam_max*10))
+  escenario.nombre = paste0(escen_Regular,"_",Tipo_masa,"_E_",Edad_reg,"_N_",N_reg,"_IS_",IS,
+                            "_DMX_",as.character(diam_max), "_AB_",as.character(ab_objetivo), "_pesoAB_",as.character(peso_G), "_rota_", as.character(rota))
   ruta_dir_escenario = paste0("resultados/simulaciones/",grupo,"/",escenario.nombre)
   if(!file.exists(ruta_dir_escenario)) {
     dir.create(ruta_dir_escenario)
@@ -193,7 +195,10 @@ print(paste0("escenario nº: ",escenario))
         mutate(clase_D = cut(d_, breaks = breaks_5cm, labels = seq(5,150,by=5))) %>% #labels identifica el diámetro medio de la clase
         mutate(clase_D = as.numeric(as.character(clase_D))) %>%
         mutate(ab = pi*(d_/200)^2*n_d) %>%
-        mutate(vol = predict(lm.vcc, newdata = data.frame(Dn_mm = d_*10))/1000*n_d)
+        mutate(vol = predict(lm.vcc, newdata = data.frame(Dn_mm = d_*10))/1000*n_d) %>%
+        #ponderar los datos para corregir n, ab y vol a los de monte regular, para iniciar en el mismo valor
+        mutate(ab = ab/sum(ab, na.rm = TRUE)*G_reg,
+               vol = vol/sum(vol, na.rm = TRUE)*V_reg)
       
       df_v_carp <- df_ %>%
         mutate(ab = pi*(d_/200)^2*n_d) %>%
@@ -273,7 +278,7 @@ print(paste0("escenario nº: ",escenario))
         funcion_actualizar_despues(i)
       }    
       
-      #datos del monte irregular desde la edad (tiempo) a la que se inicia la transformoción
+      #datos del monte irregular desde la edad (tiempo) a la que se inicia la transformación
       res_ <- data.frame(IS_ = IS, Tiempo = tiempo, 
                         N_a_ = N_a, G_a_ = G_a, Dg_a_ = Dg_a, V_a_ = V_a,
                         N_d_ = N_d,  G_d_ = G_d, Dg_d_ = Dg_d, V_d_ = V_d,
@@ -312,6 +317,7 @@ print(paste0("escenario nº: ",escenario))
         mutate(V_carp_ = ifelse(Dg_a_ >= 20, V_carp_, 0)) %>% #sólo se considera para sierra por encima de 20 cm
         select(names(res_))
       
+      
       res <- res_reg_ %>%
         bind_rows(res_) %>%
         mutate(acum_V_e_ = cumsum(V_e_)) %>%
@@ -320,7 +326,7 @@ print(paste0("escenario nº: ",escenario))
         mutate(diff_Crec_Vt = c(0, diff(Crec_Vt_))) %>%
         mutate(Crec_medio_ = Crec_Vt_/Tiempo) %>%
         mutate(Crec_corr_ = diff_Crec_Vt/c(0,diff(Tiempo)))
-       
+      
       # res <- data.frame(IS_ = IS, Tiempo = tiempo, 
       #                   N_a_ = N_a, G_a_ = G_a, Dg_a_ = Dg_a, V_a_ = V_a,
       #                   N_d_ = N_d,  G_d_ = G_d, Dg_d_ = Dg_d, V_d_ = V_d,
@@ -414,16 +420,18 @@ print(paste0("escenario nº: ",escenario))
       ggsave(paste0(ruta_dir_escenario,"/",escenario.nombre,".png"), width = 677.4 , height = 364.416, units = "mm")
       
       para_excel_solo_trat <- para_excel_res %>%
-        #mutate(Tiempo = tiempo+Edad_reg-1) %>% #se pasa el tiempo a la edad a la que se inicia la transformación, para comparar en CO2Fix
+        #mutate(Tiempo = Tiempo+Edad_reg-1) %>% #se pasa el tiempo a la edad a la que se inicia la transformación, para comparar en CO2Fix
         filter(Tiempo %in% seq(5,500, by=5) | tratamiento %in% c("final","clareo",tipos_claras)) %>%
         mutate(Mortalidad_natural = ifelse(tratamiento %in% c("mortalidad natural"),1,0)) %>%
-        mutate(Mortality = ifelse(V_a_== 0, 0, Mortalidad_natural*round(V_e_/V_a_,2))) %>%
+        mutate(Mortality = ifelse(V_a_== 0, 0, Mortalidad_natural*round(V_e_/V_a_,4))) %>%
         mutate(Stems = ifelse(Tiempo %in% seq(5,500, by=5), 1, 0)) %>%
         mutate(CAI = Stems*Crec_corr_) %>%
         mutate(Thinning_Harvest = ifelse(tratamiento %in% c("final","clareo",tipos_claras),1,0)) %>%
         mutate(Fraction_removed = Thinning_Harvest*round(V_e_/V_a_,2)) %>%
-        mutate(Stems_log_wood = ifelse(V_carp_ == 0, 0,round(V_carp_/V_e_,3))) %>%
-        mutate(Stems_pulp_pap = 1-Stems_log_wood) 
+        mutate(Stems_log_wood = 0.75) %>% #clasificaciones válidas MEF/UNE (manual Gofagus, pp. 121)
+        mutate(Stems_pulp_pap = 1-Stems_log_wood)
+        # mutate(Stems_log_wood = ifelse(V_carp_ == 0, 0,round(V_carp_/V_e_,3))) %>%
+        # mutate(Stems_pulp_pap = 1-Stems_log_wood) 
       
       #se genera el dataframe que resume la evolución, uniendo la parte de crecimiento en monte regular con la 
       #correspondiente en monte irregular, para compararlo con el de monte regular en CO2Fix como línea base
@@ -491,10 +499,17 @@ print(paste0("escenario nº: ",escenario))
         else if(etiqueta_ == "# mortality table") {
           arch_etiqueta <- res_CO2Fix %>%
             filter(Mortalidad_natural==1) %>%
+            mutate(Mortality = 0) %>%
             mutate(columna_texto = paste0("\t\t\t\t\t",Tiempo,"\t",Mortality)) %>%
             select(columna_texto) %>%
             mutate(etiqueta = etiqueta_)
           
+          # arch_etiqueta <- res_CO2Fix %>%
+          #   filter(Mortalidad_natural==1) %>%
+          #   mutate(columna_texto = paste0("\t\t\t\t\t",Tiempo,"\t",Mortality)) %>%
+          #   select(columna_texto) %>%
+          #   mutate(etiqueta = etiqueta_)
+          # 
           assign(paste0("archiv_",etiqueta_), encabezados_CO2Fix)
           
           arch_CO2 <- encabezados_CO2Fix %>%

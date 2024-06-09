@@ -719,8 +719,10 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
       mutate(V_carp = v_carp_1+v_carp_2+v_carp_3+v_carp_4) %>%
       mutate(V_carp = ifelse(V_carp >= V_e_, V_e_, V_carp)) %>%
       mutate(V_carp = ifelse(Dg_a_ >= 20, V_carp, 0)) %>% #sólo se considera para sierra por encima de 20 cm
-      mutate(Stems_log_wood = ifelse(V_carp == 0, 0,round(V_carp/V_e_,3))) %>%
+      mutate(Stems_log_wood = 0.75) %>% #clasificaciones válidas MEF/UNE (manual Gofagus, pp. 121)
       mutate(Stems_pulp_pap = 1-Stems_log_wood) %>%
+      # mutate(Stems_log_wood = ifelse(V_carp == 0, 0,round(V_carp/V_e_,3))) %>%
+      # mutate(Stems_pulp_pap = 1-Stems_log_wood) %>%
       left_join(escenario.tratamiento_0 %>% rename(Edad = edad))
     
     write.xlsx(para_excel_solo_trat, paste0(ruta_dir_escenario,"/",escenario.nombre,"_IS_",IS,"_",N_ini_,"_resumido.xlsx"))
