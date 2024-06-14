@@ -32,6 +32,8 @@ tipos_claras <- c("clara por lo bajo","clara mixta","diseminatoria","aclaratoria
 #datos de ordenaciones para el gráfico
   dat_ordenaciones_adultas <- read.csv("resultados/dat_ordenaciones_adultas.csv")
 
+  #relación entre volumen de fuste y de tronquillo, Madrigal et al (1992)
+  rel_v_tronquillo <- read.csv2("datos/rel_v_tronquillo.csv")
 
 # #Denominación del grupo
 # grupo = "prueba" #"transformacion"
@@ -221,7 +223,7 @@ print(paste0("escenario nº: ",escenario))
         mutate(v_carp = v_carp_1+v_carp_2+v_carp_3+v_carp_4) %>%
         mutate(v_carp = ifelse(v_carp > vol, vol, v_carp)) %>%
         mutate(v_carp = ifelse(d_ >= 20, v_carp, 0)) %>% #sólo se considera para sierra por encima de 20 cm
-        #fracciones de biomasa
+       #fracciones de biomasa
         mutate(B_hoja = 0.0167*d_^2.951*Ht^-1.101, #Batelink 1997
                B_fuste = exp(0.23272^2/2)*exp(-1.63732)*d_^2.21464,
                B_rama7 = exp(0.62932^2/2)*exp(-10.811)*d_^4.08961,
@@ -288,7 +290,12 @@ print(paste0("escenario nº: ",escenario))
         mutate(Crec_corr_ = diff_Crec_Vt/c(0,diff(Tiempo))) %>%
         mutate(Rel_growth_foliage_ = Rel_growth_foliage) %>%
         mutate(Rel_growth_branches_ = Rel_growth_branches) %>%
-        mutate(Rel_growth_roots_ = Rel_growth_roots)
+        mutate(Rel_growth_roots_ = Rel_growth_roots) %>%
+        mutate(etiqueta_tronq = cut(Dg_a_, breaks =  rel_v_tronquillo$clas_inf, labels = rel_v_tronquillo$etiqueta_tronq[1:9])) %>%
+        mutate(etiqueta_tronq = as.numeric(as.character(etiqueta_tronq))) %>%
+        left_join(rel_v_tronquillo %>% select(etiqueta_tronq, v_tronquillo)) %>%
+        mutate(Stems_log_wood = (100-v_tronquillo)/100) %>% #Madrigal et al. (1992)
+        mutate(Stems_pulp_pap = 1-Stems_log_wood) %>%
       
       #ggplot(res, aes(x=Tiempo, y = Crec_corr_))+geom_point()
       
@@ -312,6 +319,7 @@ print(paste0("escenario nº: ",escenario))
                        "N_d_", "Dg_d_", "G_d_", "V_d_",
                        "Crec_Vt_", "Crec_medio_", "Crec_corr_",
                        "Rel_growth_foliage_", "Rel_growth_branches_", "Rel_growth_roots_",
+                       "Stems_log_wood", "Stems_pulp_pap",
                        "tratamiento")
       
       para_excel_res <- res[nombres_exc] %>%
@@ -352,9 +360,9 @@ print(paste0("escenario nº: ",escenario))
         mutate(Stems = ifelse(Tiempo %in% seq(5,500, by=5), 1, 0)) %>%
         mutate(CAI = Stems*Crec_corr_) %>%
         mutate(Thinning_Harvest = ifelse(tratamiento %in% c("final","clareo",tipos_claras),1,0)) %>%
-        mutate(Fraction_removed = Thinning_Harvest*round(V_e_/V_a_,2)) %>%
-        mutate(Stems_log_wood = 0.75) %>% #clasificaciones válidas MEF/UNE (manual Gofagus, pp. 121)
-        mutate(Stems_pulp_pap = 1-Stems_log_wood)
+        mutate(Fraction_removed = Thinning_Harvest*round(V_e_/V_a_,2))
+        # mutate(Stems_log_wood = 0.75) %>% #clasificaciones válidas MEF/UNE (manual Gofagus, pp. 121)
+        # mutate(Stems_pulp_pap = 1-Stems_log_wood)
         # mutate(Stems_log_wood = ifelse(V_carp_ == 0, 0,round(V_carp_/V_e_,3))) %>%
         
        

@@ -19,6 +19,9 @@ res_daso_claras_0 <- res_daso_claras %>%
 #datos de ordenaciones para el gráfico
 dat_ordenaciones_adultas <- read.csv("resultados/dat_ordenaciones_adultas.csv")
 
+#relación entre volumen de fuste y de tronquillo, Madrigal et al (1992)
+rel_v_tronquillo <- read.csv2("datos/rel_v_tronquillo.csv")
+
 funcion_genera_escenarios_vol_min <- function(grupo_ = "prueba", escenario.nombre_ = "prueba_cod_1_1_8_17_IS25_alta",
                                       N_ini_ = 7000) {
 print(paste(grupo_,escenario.nombre_,N_ini_))
@@ -719,8 +722,13 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
       mutate(V_carp = v_carp_1+v_carp_2+v_carp_3+v_carp_4) %>%
       mutate(V_carp = ifelse(V_carp >= V_e_, V_e_, V_carp)) %>%
       mutate(V_carp = ifelse(Dg_a_ >= 20, V_carp, 0)) %>% #sólo se considera para sierra por encima de 20 cm
-      mutate(Stems_log_wood = 0.75) %>% #clasificaciones válidas MEF/UNE (manual Gofagus, pp. 121)
+      mutate(etiqueta_tronq = cut(Dg_a_, breaks =  rel_v_tronquillo$clas_inf, labels = rel_v_tronquillo$etiqueta_tronq[1:9])) %>%
+      mutate(etiqueta_tronq = as.numeric(as.character(etiqueta_tronq))) %>%
+      left_join(rel_v_tronquillo %>% select(etiqueta_tronq, v_tronquillo)) %>%
+      mutate(Stems_log_wood = (100-v_tronquillo)/100) %>% #Madrigal et al. (1992)
       mutate(Stems_pulp_pap = 1-Stems_log_wood) %>%
+      # mutate(Stems_log_wood = 0.75) %>% #clasificaciones válidas MEF/UNE (manual Gofagus, pp. 121)
+      # mutate(Stems_pulp_pap = 1-Stems_log_wood) %>%
       # mutate(Stems_log_wood = ifelse(V_carp == 0, 0,round(V_carp/V_e_,3))) %>%
       # mutate(Stems_pulp_pap = 1-Stems_log_wood) %>%
       left_join(escenario.tratamiento_0 %>% rename(Edad = edad))

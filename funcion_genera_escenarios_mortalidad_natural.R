@@ -97,6 +97,7 @@ funcion_genera_escenarios_mortalidad <- function(grupo_ = "prueba", escenario.no
   mort_pend <- -1.9273713
   
   
+  
   edad = seq(edad_ini,edad_fin, by = 1)
   Ho = IS*((1-1/exp(0.02*edad))/(1-1/exp(0.02*80)))^1.4823
   

@@ -6,7 +6,7 @@
 library(tidyverse)
 
 #nombre del archivo CO2Fix a generar
-archiv_para_CO2Fix = "H2_IS25_.co2" #"prueba_varios_IS25.co2"
+archiv_para_CO2Fix = "H2_IS13_mismo_ini.co2" #"prueba_varios_IS25.co2"
 
 #cargar el encabezamiento general
 load("datos/escrib_CO2Fix/encabezamientos/encabezamiento_general_CO2Fix")
@@ -16,63 +16,63 @@ load("datos/escrib_CO2Fix/encabezamientos/plantilla_escenario_CO2Fix")
 #ruta de escenarios a integrar
 
 grupo_transformacion <- "transformacion"  #"transformacion" "IS19_rot_10"
-nombres_irreg <- list.files(paste0("resultados/simulaciones/",grupo_transformacion), pattern = "*_IS25_alta*")
+nombres_irreg <- list.files(paste0("resultados/simulaciones/",grupo_transformacion), pattern = "*_IS13_alta*")
 esc_nombres_irreg <- paste0("resultados/simulaciones/",grupo_transformacion,"/",nombres_irreg)
 
+# rutas_escenarios <- c(
+#   "resultados/simulaciones/mortalidad_natural/mortalidad_natural_IS25_alta_6381",
+#   "resultados/simulaciones/label_bas_carbon/ref_monte_bajo_sin_clareos_IS25_alta_6381",
+#   "resultados/simulaciones/label_bas_carbon/conversion_bajo_IS25_alta_6381",
+#   "resultados/simulaciones/go_fagus/H5_IS25_alta_6381",
+#   "resultados/simulaciones/go_fagus/H2_IS25_alta_6381",
+#   "resultados/simulaciones/go_fagus/H1_IS25_alta_6381",
+#   "resultados/simulaciones/PC/PC1_IS25_alta_6381",
+#   esc_nombres_irreg
+# )
+
+# rutas_escenarios <- c(
+#   "resultados/simulaciones/mortalidad_natural/mortalidad_natural_IS22_alta_6381",
+#   "resultados/simulaciones/label_bas_carbon/ref_monte_bajo_sin_clareos_IS22_alta_6381",
+#   "resultados/simulaciones/label_bas_carbon/conversion_bajo_IS22_alta_6381",
+#   "resultados/simulaciones/go_fagus/H5_IS22_alta_6381",
+#   "resultados/simulaciones/go_fagus/H2_IS22_alta_6381",
+#   "resultados/simulaciones/go_fagus/H1_IS22_alta_6381",
+#   "resultados/simulaciones/PC/PC1_IS22_alta_6381",
+#   esc_nombres_irreg
+# )
+
+# rutas_escenarios <- c(
+#   "resultados/simulaciones/mortalidad_natural/mortalidad_natural_IS19_alta_8164",
+#   "resultados/simulaciones/label_bas_carbon/ref_monte_bajo_sin_clareos_IS19_alta_8164",
+#   "resultados/simulaciones/label_bas_carbon/conversion_bajo_IS19_alta_8164",
+#   "resultados/simulaciones/go_fagus/H5_IS19_alta_8164",
+#   "resultados/simulaciones/go_fagus/H2_IS19_alta_8164",
+#   "resultados/simulaciones/go_fagus/H1_IS19_alta_8164",
+#   "resultados/simulaciones/PC/PC1_IS19_alta_8164",
+#   esc_nombres_irreg
+# )
+
+# rutas_escenarios <- c(
+#   "resultados/simulaciones/mortalidad_natural/mortalidad_natural_IS16_alta_11301",
+#   "resultados/simulaciones/label_bas_carbon/ref_monte_bajo_sin_clareos_IS16_alta_11301",
+#   "resultados/simulaciones/label_bas_carbon/conversion_bajo_IS16_alta_11301",
+#   "resultados/simulaciones/go_fagus/H5_IS16_alta_11301",
+#   "resultados/simulaciones/go_fagus/H2_IS16_alta_11301",
+#    "resultados/simulaciones/go_fagus/H1_IS16_alta_11301",
+#   "resultados/simulaciones/PC/PC1_IS16_alta_11301",
+#   esc_nombres_irreg
+# )
+
 rutas_escenarios <- c(
-  "resultados/simulaciones/mortalidad_natural/mortalidad_natural_IS25_alta_10000",
-  "resultados/simulaciones/label_bas_carbon/ref_monte_bajo_sin_clareos_IS25_alta_4029",
-  "resultados/simulaciones/label_bas_carbon/conversion_bajo_IS25_alta_4029",
-  "resultados/simulaciones/go_fagus/H5_IS25_alta_4029",
-  "resultados/simulaciones/go_fagus/H2_IS25_alta_10000",
-  "resultados/simulaciones/go_fagus/H1_IS25_alta_4029",
-  "resultados/simulaciones/PC/PC1_IS25_alta_4029",
+  "resultados/simulaciones/mortalidad_natural/mortalidad_natural_IS13_alta_12000",
+  "resultados/simulaciones/label_bas_carbon/ref_monte_bajo_sin_clareos_IS13_alta_12000",
+  "resultados/simulaciones/label_bas_carbon/conversion_bajo_IS13_alta_12000",
+  "resultados/simulaciones/go_fagus/H5_IS13_alta_12000",
+  "resultados/simulaciones/go_fagus/H2_IS13_alta_12000",
+  "resultados/simulaciones/go_fagus/H1_IS13_alta_12000",
+  "resultados/simulaciones/PC/PC1_IS13_alta_12000",
   esc_nombres_irreg
 )
-
-# rutas_escenarios <- c(
-#   "resultados/simulaciones/mortalidad_natural/mortalidad_natural_IS22_alta_10000",
-#   "resultados/simulaciones/label_bas_carbon/ref_monte_bajo_sin_clareos_IS22_alta_5469",
-#   "resultados/simulaciones/label_bas_carbon/conversion_bajo_IS22_alta_5469",
-#   "resultados/simulaciones/go_fagus/H5_IS22_alta_5469",
-#   "resultados/simulaciones/go_fagus/H2_IS22_alta_10000",
-#   "resultados/simulaciones/go_fagus/H1_IS22_alta_7000",
-#   "resultados/simulaciones/PC/PC1_IS22_alta_5469",
-#   esc_nombres_irreg
-# )
-
-# rutas_escenarios <- c(
-#   "resultados/simulaciones/mortalidad_natural/mortalidad_natural_IS19_alta_10000",
-#   "resultados/simulaciones/label_bas_carbon/ref_monte_bajo_sin_clareos_IS19_alta_7510",
-#   "resultados/simulaciones/label_bas_carbon/conversion_bajo_IS19_alta_7510",
-#   "resultados/simulaciones/go_fagus/H5_IS19_alta_7510",
-#   "resultados/simulaciones/go_fagus/H2_IS19_alta_10000",
-#   "resultados/simulaciones/go_fagus/H1_IS19_alta_7000",
-#   "resultados/simulaciones/PC/PC1_IS19_alta_7510",
-#   esc_nombres_irreg
-# )
-
-# rutas_escenarios <- c(
-#   "resultados/simulaciones/mortalidad_natural/mortalidad_natural_IS16_alta_10000",
-#   "resultados/simulaciones/label_bas_carbon/ref_monte_bajo_sin_clareos_IS16_alta_10396",
-#   "resultados/simulaciones/label_bas_carbon/conversion_bajo_IS16_alta_10396",
-#   "resultados/simulaciones/go_fagus/H5_IS16_alta_10396",
-#   "resultados/simulaciones/go_fagus/H2_IS16_alta_10000",
-#    "resultados/simulaciones/go_fagus/H1_IS16_alta_7000",
-#   "resultados/simulaciones/PC/PC1_IS16_alta_10396",
-#   esc_nombres_irreg
-# )
-
-# rutas_escenarios <- c(
-#   "resultados/simulaciones/mortalidad_natural/mortalidad_natural_IS13_alta_10000",
-#   "resultados/simulaciones/label_bas_carbon/ref_monte_bajo_sin_clareos_IS13_alta_14000",
-#   "resultados/simulaciones/label_bas_carbon/conversion_bajo_IS13_alta_14000",
-#   "resultados/simulaciones/go_fagus/H5_IS13_alta_10000",
-#   "resultados/simulaciones/go_fagus/H2_IS13_alta_10000",
-#   "resultados/simulaciones/go_fagus/H1_IS13_alta_7000",
-#   "resultados/simulaciones/PC/PC1_IS13_alta_14418",
-#   esc_nombres_irreg
-# )
 
 
 

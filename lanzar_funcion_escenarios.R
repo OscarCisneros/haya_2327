@@ -40,7 +40,7 @@ source("scripts/funcion_genera_escenarios_transformacion_unido_desde_REGULAR_par
 source("scripts/funciones_accesorias_transformacion.R")
 
 
-grupo_ <-  "PC" #"go_fagus" #"planes_comarcales_navarra" "selv_macizo_pirenaico" "CNPF" "opt_go_fagus"
+grupo_ <-  "go_fagus" #"go_fagus" #"planes_comarcales_navarra" "selv_macizo_pirenaico" "CNPF" "opt_go_fagus"
 densidades_iniciales <- c(7510) #c(7000,5000)
 
 csv_nombres <- list.files(paste0("datos/escenarios/",grupo_), pattern = "\\.csv")
@@ -69,8 +69,8 @@ grupo_ <-  "mortalidad_natural" #"go_fagus" #"planes_comarcales_navarra" "selv_m
 #   rowwise() %>%
 #   mutate(lista_var = list(c(grupo_,densidades_iniciales,csv_nombres)))
 
-densidades_iniciales_ <- c(10000)
-is_ <- c("IS25")
+densidades_iniciales_ <- c(12000)
+is_ <- c("IS13")
 
 csv_nombres <- list.files(paste0("datos/escenarios/",grupo_), pattern = "\\.csv")
 csv_nombres <- substr(csv_nombres, 1, nchar(csv_nombres)-4)
@@ -91,13 +91,13 @@ write.xlsx(oo, paste0("resultados/simulaciones/",grupo_,"/","res_.xlsx"))
 #lanzar escenarios con volumen minimo extraido de 40 m3. Selección de densidades iniciales
 source("scripts/funcion_genera_escenarios_volumen_minimo.R")
 
-grupo_ <-  "go_fagus" #"PC" "go_fagus" #"planes_comarcales_navarra" "selv_macizo_pirenaico" "CNPF" "label_bas_carbon" "mortalidad_natural" "prueba"
+grupo_ <-  "label_bas_carbon" #"PC" "go_fagus" #"planes_comarcales_navarra" "selv_macizo_pirenaico" "CNPF" "label_bas_carbon" "mortalidad_natural" "prueba"
 #densidades iniciales y calidades correspondientes, para retener sólo los pares admitidos
 # densidades_iniciales_ <- c(4029,5469,7510,10396,14418)
 # is_ <- c("IS25","IS22","IS19","IS16","IS13")
 
-densidades_iniciales_ <- c(10396)
-is_ <- c("IS16")
+densidades_iniciales_ <- c(12000)
+is_ <- c("IS13")
 
 csv_nombres <- list.files(paste0("datos/escenarios/",grupo_), pattern = "\\.csv")
 csv_nombres <- substr(csv_nombres, 1, nchar(csv_nombres)-4)
@@ -127,7 +127,7 @@ grupo_ <- "go_fagus" #"go_fagus" #"planes_comarcales_navarra" "selv_macizo_piren
 # densidades_iniciales_ <- c(4029,5469,7510,10396,14418)
 # is_ <- c("IS25","IS22","IS19","IS16","IS13")
 
-densidades_iniciales_ <- c(10000)
+densidades_iniciales_ <- c(12000)
 is_ <- c("IS13")
 
 csv_nombres <- list.files(paste0("datos/escenarios/",grupo_), pattern = "\\.csv")

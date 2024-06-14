@@ -23,24 +23,39 @@ num_turnos <- 3
 #H2 IS25
 # tipos_masa <- data.frame(tipo_m = c("A","B", "C","D"),
 #                          Edad = c(50,30,100,70))
+# tipos_masa <- data.frame(tipo_m = c("A", "C","D"),
+#                          Edad = c(50,100,70))
+# tipos_masa <- data.frame(tipo_m = c("B"),
+#                          Edad = c(30))
+
 
 #H2 IS22
 # tipos_masa <- data.frame(tipo_m = c("A","B", "C","D"),
 #                          Edad = c(65,40,120,100))
 # tipos_masa <- data.frame(tipo_m = c("A", "C","D"),
 #                          Edad = c(65,120,100))
+# tipos_masa <- data.frame(tipo_m = c("B"),
+#                          Edad = c(40))
 
 #H2 IS19
 # tipos_masa <- data.frame(tipo_m = c("A","B", "C","D"),
 #                          Edad = c(70,50,170,150))
 # tipos_masa <- data.frame(tipo_m = c("A", "C","D"),
 #                          Edad = c(65,120,100))
+# tipos_masa <- data.frame(tipo_m = c("A","B","D"),
+#                          Edad = c(70,50,150))
+# tipos_masa <- data.frame(tipo_m = c("C"),
+#                          Edad = c(170))
 
 #H2 IS16
 # tipos_masa <- data.frame(tipo_m = c("A","B", "C","D"),
 #                          Edad = c(85,60,180,160))
-tipos_masa <- data.frame(tipo_m = c("C"),
-                         Edad = c(185))
+# tipos_masa <- data.frame(tipo_m = c("C"),
+#                          Edad = c(185))
+# tipos_masa <- data.frame(tipo_m = c("A","B","D"),
+#                          Edad = c(85,60,160))
+# tipos_masa <- data.frame(tipo_m = c("C"),
+#                          Edad = c(180))
 
 #H2 IS13
 # tipos_masa <- data.frame(tipo_m = c("A","B", "C","D"),
@@ -51,8 +66,10 @@ tipos_masa <- data.frame(tipo_m = c("C"),
 #                          Edad = c(50,100,70))
 # tipos_masa <- data.frame(tipo_m = c("C", "D"),
 #                          Edad = c(100, 70))
-
-
+# tipos_masa <- data.frame(tipo_m = c("A","B","D"),
+#                          Edad = c(95,70,165))
+tipos_masa <- data.frame(tipo_m = c("C"),
+                         Edad = c(185))
 
 #datos de claras para el gráfico
 res_daso_claras <- read.csv2("datos/claras/res_daso_claras.csv")
@@ -61,6 +78,9 @@ res_daso_claras_0 <- res_daso_claras %>%
 
 #datos de ordenaciones para el gráfico
 dat_ordenaciones_adultas <- read.csv("resultados/dat_ordenaciones_adultas.csv")
+
+#relación entre volumen de fuste y de tronquillo, Madrigal et al (1992)
+rel_v_tronquillo <- read.csv2("datos/rel_v_tronquillo.csv")
 
 # funcion_genera_escenarios_vol_min_IRREG <- function(grupo_ = "prueba", escenario.nombre_ = "plan_comarcal_1_1_8_17_dif_dens_IS13_alta",
 #                                                     N_ini_ = 7000)
@@ -781,8 +801,13 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
       mutate(V_carp = v_carp_1+v_carp_2+v_carp_3+v_carp_4) %>%
       mutate(V_carp = ifelse(V_carp >= V_e_, V_e_, V_carp)) %>%
       mutate(V_carp = ifelse(Dg_a_ >= 20, V_carp, 0)) %>% #sólo se considera para sierra por encima de 20 cm
-      mutate(Stems_log_wood = 0.75) %>% #clasificaciones válidas MEF/UNE (manual Gofagus, pp. 121)
+      mutate(etiqueta_tronq = cut(Dg_a_, breaks =  rel_v_tronquillo$clas_inf, labels = rel_v_tronquillo$etiqueta_tronq[1:9])) %>%
+      mutate(etiqueta_tronq = as.numeric(as.character(etiqueta_tronq))) %>%
+      left_join(rel_v_tronquillo %>% select(etiqueta_tronq, v_tronquillo)) %>%
+      mutate(Stems_log_wood = (100-v_tronquillo)/100) %>% #Madrigal et al. (1992)
       mutate(Stems_pulp_pap = 1-Stems_log_wood) %>%
+      # mutate(Stems_log_wood = 0.75) %>% #clasificaciones válidas MEF/UNE (manual Gofagus, pp. 121)
+      # mutate(Stems_pulp_pap = 1-Stems_log_wood) %>%
       # mutate(Stems_log_wood = ifelse(V_carp == 0, 0,round(V_carp/V_e_,3))) %>%
       # mutate(Stems_pulp_pap = 1-Stems_log_wood) %>%
       left_join(escenario.tratamiento_0 %>% rename(Edad = edad))
@@ -915,7 +940,7 @@ print(paste(grupo_,escenario.nombre_,N_ini_))
     #IS_ = c(25) #c(13,16,19,22,25)
     
     #área basimétrica objetivo
-    ab_objetivo_ = c(30) # c(15,20,25)
+    ab_objetivo_ = c(25,30) # c(15,20,25)
     precis_ab = 0.05 #margen para el ab_objetivo
     
     #rango de diámetros

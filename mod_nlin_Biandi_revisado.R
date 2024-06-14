@@ -6,6 +6,7 @@ library(quantreg)
 library(ggpubr)
 library(tidyverse)
 
+load("datos/dat_inc")
 #eliminar los datos con incrementos menores al 0.2 o mayores al 0.9 para cada clase de 2 cm de diámetro
 #clases de 2 cm de diámetro
 #se consigue un incremento medio de 0.2 cm/año en diámetro, lo que se recoge en gofagus (pp 73) y de media en H5 (más bien por debajo de H5)
@@ -227,14 +228,16 @@ ggplot(resultado, aes(x=predicho, y = inc_ab_ind))+
   geom_abline(slope = correc_calidad_irreg$pendiente[[3]], intercept = correc_calidad_irreg$intercept[[3]], color = "orange", size = 8)+
   geom_abline(slope = correc_calidad_irreg$pendiente[[4]], intercept = correc_calidad_irreg$intercept[[4]], color = "blue", size = 8)+
   geom_abline(slope = correc_calidad_irreg$pendiente[[5]], intercept = correc_calidad_irreg$intercept[[5]], color = "darkgreen", size = 8)+
-  ggtitle("Rectas de regresión cuantílica. Predicción del incremento en área basimétrica", subtitle = "Cuantiles: 10,30,50,70,90")+
+  ggtitle("Rectas de regresión cuantílica. Predicción del incremento en área basimétrica", subtitle = "Cuantiles: 40,45,50,55,60")+
   theme_light()+
   labs(x = "Predicho", y = "Observado")+
   theme(text = element_text(size = 60)) +
   theme(axis.title.y = element_text(size=40, margin = margin(t = 0, r = 20, b = 0, l = 0))) +
   theme(axis.title.x = element_text(size=40, margin = margin(t = 20, r = 0, b = 0, l = 0))) +
   theme(plot.title = element_text(size=50, family = "sans", margin=margin(0,0,30,0)))+
-  theme(plot.subtitle=element_text(size=30, face="italic", margin=margin(0,0,20,0)))
+  theme(plot.subtitle=element_text(size=30, face="italic", margin=margin(0,0,20,0)))+
+  xlim(0,30)+
+  ylim(0,30) #se limitan los valores para una mejor visualización
 
 ggsave("informe/graf/correc_calidad_irreg_.png", width = 677.4 , height = 364.416, units = "mm")
 
